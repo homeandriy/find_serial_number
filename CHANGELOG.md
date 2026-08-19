@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.3.1 - 2026-08-20
+
+### Changed
+
+- Store and display device registration date and time; highlight edit and delete actions.
+
 ## v0.3.0 - 2026-08-20
 
 ### Added
