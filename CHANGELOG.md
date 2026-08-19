@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.7.1 - 2026-08-20
+
+### Fixed
+
+- Save the Windows installer license agreement in the code page expected by NSIS, so Ukrainian text displays correctly.
+
 ## v0.7.0 - 2026-08-20
 
 ### Added
