@@ -48,7 +48,7 @@ final class AiVisionRecognizer
     private function openAi(array $agent, string $mimeType, string $image): string
     {
         $response = $this->client()->withToken($agent['token'])->post('https://api.openai.com/v1/responses', ['model' => $agent['model'], 'input' => [['role' => 'user', 'content' => [['type' => 'input_text', 'text' => self::Prompt], ['type' => 'input_image', 'image_url' => "data:{$mimeType};base64,{$image}", 'detail' => 'high']]]]]);
-        return $this->responseText($response->status(), $response->body(), $agent['token'], data_get($response->json(), 'output_text'));
+        return $this->responseText($response->status(), $response->body(), $agent['token'], data_get($response->json(), 'output.0.content.0.text'));
     }
 
     private function anthropic(array $agent, string $mimeType, string $image): string
