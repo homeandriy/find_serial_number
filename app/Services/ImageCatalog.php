@@ -129,12 +129,9 @@ final class ImageCatalog
         }
     }
 
-    private function directory(): ?string
-    {
-        $directory = realpath((string) config('serial-number.image_directory'));
+    public function configuredDirectory(): string { return app(ImageDirectorySettings::class)->path(); }
 
-        return $directory !== false && is_dir($directory) ? $directory : null;
-    }
+    private function directory(): ?string { $directory = realpath($this->configuredDirectory()); return $directory !== false && is_dir($directory) ? $directory : null; }
 
     private function isSupported(SplFileInfo $file): bool
     {

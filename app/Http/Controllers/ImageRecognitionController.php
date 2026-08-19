@@ -9,6 +9,8 @@ use App\Services\AiVisionRecognizer;
 use App\Services\ImageCatalog;
 use App\Services\TesseractRecognizer;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use App\Services\ImageDirectorySettings;
 use Native\Desktop\Facades\Shell;
 use RuntimeException;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
@@ -29,6 +31,10 @@ final class ImageRecognitionController extends Controller
     {
         try { $catalog->delete($image); return response()->json(status: 204); } catch (RuntimeException $exception) { return response()->json(['message' => $exception->getMessage()], 422); }
     }
+
+    public function imageDirectory(ImageCatalog $catalog): JsonResponse { return response()->json(['path' => $catalog->configuredDirectory()]); }
+
+    public function updateImageDirectory(Request $request, ImageDirectorySettings $settings): JsonResponse { try { return response()->json(['path' => $settings->update($request->validate(['path' => ['required','string']])['path'])]); } catch (RuntimeException $exception) { return response()->json(['message' => $exception->getMessage()], 422); } }
 
     public function openWebsite(): JsonResponse
     {

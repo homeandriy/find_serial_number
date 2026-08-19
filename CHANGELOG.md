@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.6.0 - 2026-08-20
+
+### Added
+
+- Configure the image folder from the application settings.
+
+### Changed
+
+- Start the desktop window at 1920×1080 and refine refresh/export alignment.
+
+
 ## v0.5.4 - 2026-08-20
 
 ### Fixed

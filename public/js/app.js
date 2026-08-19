@@ -455,3 +455,16 @@ window.addEventListener('mousedown', event => {
         forceHideMenus();
     }
 }, true);
+
+// Image folder setting.
+const folderSettings = document.createElement('section');
+folderSettings.className = 'settings-panel';
+folderSettings.innerHTML = '<h2>Папка зображень</h2><form id="image-directory-form" class="agent-form"><label>Шлях до папки<input name="path" required></label><button class="primary-button">Зберегти папку</button><p class="agent-message"></p></form></section>';
+settingsTabCrud.prepend(folderSettings);
+const imageDirectoryForm = qs('#image-directory-form');
+request('/image-directory').then(payload => imageDirectoryForm.path.value = payload.path).catch(error => imageDirectoryForm.querySelector('.agent-message').textContent = error.message);
+imageDirectoryForm.onsubmit = async event => {
+ event.preventDefault();
+ const message = imageDirectoryForm.querySelector('.agent-message');
+ try { await request('/image-directory','PUT',Object.fromEntries(new FormData(imageDirectoryForm))); window.location.reload(); } catch(error) { message.textContent=error.message; }
+};

@@ -18,6 +18,8 @@ Route::get('/', function (ImageCatalog $catalog, AiAgentRepository $agents) {
 Route::get('/images/{image}', [ImageRecognitionController::class, 'image'])->where('image', '[A-Za-z0-9_-]+');
 Route::post('/images/{image}/rotate', [ImageRecognitionController::class, 'rotate'])->where('image', '[A-Za-z0-9_-]+');
 Route::delete('/images/{image}', [ImageRecognitionController::class, 'deleteImage'])->where('image', '[A-Za-z0-9_-]+');
+Route::get('/image-directory', [ImageRecognitionController::class, 'imageDirectory']);
+Route::put('/image-directory', [ImageRecognitionController::class, 'updateImageDirectory']);
 Route::post('/website', [ImageRecognitionController::class, 'openWebsite']);
 Route::post('/images/{image}/recognize', [ImageRecognitionController::class, 'recognize'])->where('image', '[A-Za-z0-9_-]+');
 Route::post('/images/{image}/recognize-ai/{agent}', [ImageRecognitionController::class, 'recognizeAi'])->where(['image' => '[A-Za-z0-9_-]+', 'agent' => '[A-Za-z0-9-]+']);
