@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.2.0 - 2026-08-19
+
+### Added
+
+- Local devices database, model directory, and saving selected OCR text.
+
 ## v0.1.0 - 2026-08-19
 
 ### Added

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\DeviceController;
 use App\Http\Controllers\ImageRecognitionController;
 use App\Services\AiAgentRepository;
 use App\Services\ImageCatalog;
@@ -21,3 +22,8 @@ Route::get('/ai-agents', [ImageRecognitionController::class, 'agents']);
 Route::post('/ai-agents', [ImageRecognitionController::class, 'storeAgent']);
 Route::put('/ai-agents/{agent}', [ImageRecognitionController::class, 'updateAgent'])->where('agent', '[A-Za-z0-9-]+');
 Route::delete('/ai-agents/{agent}', [ImageRecognitionController::class, 'deleteAgent'])->where('agent', '[A-Za-z0-9-]+');
+
+Route::get('/devices', [DeviceController::class, 'index']);
+Route::post('/devices', [DeviceController::class, 'store']);
+Route::get('/device-models', [DeviceController::class, 'models']);
+Route::post('/device-models', [DeviceController::class, 'storeModel']);
