@@ -1,58 +1,106 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Find Serial Number
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Desktop-застосунок для пошуку серійних номерів і MAC-адрес на фотографіях обладнання. Він показує зображення з локальної папки, розпізнає текст, зберігає записи в локальній базі та експортує дані для Microsoft Excel.
 
-## About Laravel
+Поточна версія: `0.6.6`.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## Можливості
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+- Локальне OCR-розпізнавання через Tesseract із перевіркою кількох поворотів зображення.
+- Додаткове AI-розпізнавання через OpenAI, Anthropic або Google Gemini.
+- Перегляд фото з обраної папки, поворот JPG/PNG/WEBP і видалення файлів.
+- Збереження серійних номерів і MAC-адрес із моделлю, типом, послугою та датою.
+- Довідник моделей і керування записами обладнання.
+- Фільтрація за періодом, типом, послугою та текстом.
+- Експорт усіх відфільтрованих записів у CSV з роздільником `;` і кодуванням Windows-1251 для Excel.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## Вимоги
 
-## Learning Laravel
+Застосунок орієнтований на Windows. Для запуску потрібні PHP 8.3 або новіший, Composer, Node.js, npm і [Tesseract OCR](https://github.com/UB-Mannheim/tesseract/wiki) з мовними даними `eng` та `ukr`. Скрипти проєкту за замовчуванням використовують PHP 8.5 з `F:\Tools\php-8_5\php.exe`.
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+## Швидкий запуск у Windows
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+1. Відкрийте командний рядок у папці проєкту.
+2. За потреби змініть `PHP_EXE` і `COMPOSER_PHAR` у `setup-windows.bat`.
+3. Запустіть підготовку:
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
-
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
-
-```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+```bat
+setup-windows.bat
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+Скрипт встановить залежності, підготує NativePHP і скопіює мовні дані Tesseract.
 
-## Contributing
+4. Додайте фотографії етикеток до папки `images` або після запуску виберіть іншу папку в налаштуваннях.
+5. Запустіть програму:
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+```bat
+run-native.bat
+```
 
-## Code of Conduct
+## Як працювати
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+1. На вкладці зображень виберіть фото етикетки.
+2. За потреби поверніть його через контекстне меню.
+3. Запустіть локальне OCR-розпізнавання або виберіть налаштованого AI-агента.
+4. Виділіть серійний номер або MAC-адресу в результаті та додайте її до обладнання.
+5. Виберіть чи створіть модель, тип (`тюнер` або `модем`) і послугу (`інтернет` або `телебачення`), перевірте дату та збережіть запис.
+6. На вкладці обладнання скористайтеся фільтрами або експортуйте результати.
 
-## Security Vulnerabilities
+Дати й час обробляються в часовому поясі `Europe/Kyiv`.
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+## Налаштування OCR
 
-## License
+Параметри задаються у `.env`:
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+```dotenv
+SERIAL_IMAGES_PATH=C:\path\to\images
+TESSERACT_BINARY=C:\Program Files\Tesseract-OCR\tesseract.exe
+TESSDATA_DIRECTORY=C:\path\to\find_serial_number\tessdata
+TESSERACT_LANGUAGES=eng+ukr
+TESSERACT_PSM=6
+```
+
+Якщо `SERIAL_IMAGES_PATH` не задано, використовується папка `images` у корені проєкту. Змінений у програмі шлях зберігається локально.
+
+## AI-розпізнавання
+
+Створіть AI-агента у програмі: виберіть `openai`, `anthropic` або `gemini`, вкажіть доступну модель і API-токен. Токен зберігається локально в зашифрованому вигляді. Не публікуйте `.env`, локальну базу або файли сховища.
+
+## Дані та обмеження
+
+- Підтримувані формати: BMP, GIF, JPEG, JPG, PNG, TIF, TIFF і WEBP.
+- Поворот доступний лише для JPG/JPEG, PNG і WEBP.
+- Модель обладнання унікальна за назвою, типом і послугою. Модель із пов’язаними записами не можна видалити.
+- За понад 5 000 записів у вибірці інтерфейс показує сторінки по 100 рядків; експорт містить усі відфільтровані записи.
+
+## Розробка
+
+У проєкті немає Docker-конфігурації або Makefile. Для локальної підготовки:
+
+```bash
+composer install
+cp .env.example .env
+php artisan key:generate
+php artisan migrate
+npm install
+npm run build
+composer test
+```
+
+Desktop-режим розробки:
+
+```bash
+composer native:dev
+```
+
+`php artisan migrate` змінює структуру локальної бази даних — перед запуском із важливими даними створіть резервну копію.
+
+## Структура
+
+- `app/Services` — каталог зображень, OCR і AI-інтеграції.
+- `app/Http/Controllers` — інтерфейс для зображень, AI-агентів, моделей та обладнання.
+- `database/migrations` — структура локальної бази.
+- `resources/views/serial-number` — інтерфейс програми.
+- `images` — стандартна папка для фотографій.
+
+Повна історія релізів: [CHANGELOG.md](CHANGELOG.md).

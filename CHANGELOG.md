@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.6.6 - 2026-08-20
+
+### Changed
+
+- Replace the default Laravel README with Ukrainian documentation for installing, configuring and using the desktop application.
+
+
 ## v0.6.5 - 2026-08-20
 
 ### Added
