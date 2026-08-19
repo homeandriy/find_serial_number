@@ -489,3 +489,4 @@ showModels = async () => {
  data.models.forEach(m=>{qs('[data-edit-model="'+m.id+'"]').onclick=()=>openModel(m);qs('[data-delete-model="'+m.id+'"]').onclick=async()=>{if(confirm('Видалити модель?')){await request('/device-models/'+m.id,'DELETE');showModels();loadModels()}}});qs('[data-model-page="prev"]')?.addEventListener('click',()=>{modelsPage--;showModels()});qs('[data-model-page="next"]')?.addEventListener('click',()=>{modelsPage++;showModels()});
 };
 ['#mf-type','#mf-service'].forEach(s=>qs(s).addEventListener('change',()=>{modelsPage=1}));
+document.querySelector('#open-image-directory')?.addEventListener('click', async () => { try { await request('/image-directory/open', 'POST'); } catch (error) { status.textContent = error.message; } });

@@ -34,6 +34,8 @@ final class ImageRecognitionController extends Controller
 
     public function imageDirectory(ImageCatalog $catalog): JsonResponse { return response()->json(['path' => $catalog->configuredDirectory()]); }
 
+    public function openImageDirectory(ImageCatalog $catalog): JsonResponse { Shell::openFile($catalog->configuredDirectory()); return response()->json(status: 204); }
+
     public function updateImageDirectory(Request $request, ImageDirectorySettings $settings): JsonResponse { try { return response()->json(['path' => $settings->update($request->validate(['path' => ['required','string']])['path'])]); } catch (RuntimeException $exception) { return response()->json(['message' => $exception->getMessage()], 422); } }
 
     public function openWebsite(): JsonResponse

@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="uk"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="csrf-token" content="{{ csrf_token() }}"><title>Обладнання та дані</title><link rel="stylesheet" href="{{ asset('css/app.css') }}"></head>
-<body><main class="app-shell"><header class="app-header"><div><p class="eyebrow">Локальне та AI-розпізнавання</p><h1>Обладнання та дані</h1></div></header>
+<body><main class="app-shell"><header class="app-header"><div><p class="eyebrow">Локальне та AI-розпізнавання</p><h1>Обладнання та дані</h1></div><div class="directory">Папка: <code>{{ $imageDirectory }}</code><button id="open-image-directory" class="tab-button" type="button">Відкрити</button></div></header>
 <nav class="tabs" aria-label="Навігація"><button class="tab-button is-active" type="button" data-tab="recognition">Розпізнавання</button><button class="tab-button" type="button" data-tab="settings">Налаштування AI</button></nav>
 <section id="recognition-tab" class="tab-content is-active"><section class="workspace"><aside class="image-panel"><div class="panel-heading"><h2>Зображення</h2><div class="panel-actions"><span>{{ count($images) }}</span><button id="refresh-folder" class="icon-button" type="button" title="Оновити папку зображень" aria-label="Оновити папку зображень"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0 2.1 5.4M20 4v7h-7"/></svg></button></div></div>
 @if ($images === [])<p class="empty-state">У папці немає зображень. Додайте JPG, PNG, WEBP, TIFF або BMP до вказаної папки.</p>

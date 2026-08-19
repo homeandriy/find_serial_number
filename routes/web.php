@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', function (ImageCatalog $catalog, AiAgentRepository $agents) {
     return view('serial-number.index', [
         'images' => $catalog->all(),
-        'imageDirectory' => config('serial-number.image_directory'),
+        'imageDirectory' => $catalog->configuredDirectory(),
         'agents' => $agents->all(),
         'appVersion' => trim((string) file_get_contents(base_path('VERSION'))),
     ]);
@@ -19,6 +19,7 @@ Route::get('/images/{image}', [ImageRecognitionController::class, 'image'])->whe
 Route::post('/images/{image}/rotate', [ImageRecognitionController::class, 'rotate'])->where('image', '[A-Za-z0-9_-]+');
 Route::delete('/images/{image}', [ImageRecognitionController::class, 'deleteImage'])->where('image', '[A-Za-z0-9_-]+');
 Route::get('/image-directory', [ImageRecognitionController::class, 'imageDirectory']);
+Route::post('/image-directory/open', [ImageRecognitionController::class, 'openImageDirectory']);
 Route::put('/image-directory', [ImageRecognitionController::class, 'updateImageDirectory']);
 Route::post('/website', [ImageRecognitionController::class, 'openWebsite']);
 Route::post('/images/{image}/recognize', [ImageRecognitionController::class, 'recognize'])->where('image', '[A-Za-z0-9_-]+');
