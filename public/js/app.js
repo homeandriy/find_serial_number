@@ -214,3 +214,136 @@ document.querySelectorAll('.tab-button').forEach(button => {
         button.innerHTML = '<span class="tab-icon">' + icon + '</span><span>' + escapeHtml(title) + '</span>';
     }
 });
+
+// Explicit close action and reliable click-away closing for OCR context actions.
+const closeOcrContextMenuButton = document.createElement('button');
+closeOcrContextMenuButton.type = 'button';
+closeOcrContextMenuButton.className = 'text-context-menu context-menu-close';
+closeOcrContextMenuButton.textContent = 'Закрити';
+closeOcrContextMenuButton.hidden = true;
+document.body.append(closeOcrContextMenuButton);
+
+const closeOcrContextMenus = () => {
+    textContextMenu.hidden = true;
+    addDeviceButton.hidden = true;
+    addUnformattedDeviceButton.hidden = true;
+    closeOcrContextMenuButton.hidden = true;
+};
+
+document.addEventListener('contextmenu', event => {
+    const field = event.target.closest('.result-field');
+    const selection = field?.value.slice(field.selectionStart, field.selectionEnd) || '';
+
+    if (!selection) {
+        closeOcrContextMenus();
+        return;
+    }
+
+    closeOcrContextMenuButton.hidden = false;
+    closeOcrContextMenuButton.style.left = event.clientX + 'px';
+    closeOcrContextMenuButton.style.top = (event.clientY + 108) + 'px';
+});
+
+closeOcrContextMenuButton.addEventListener('click', closeOcrContextMenus);
+document.addEventListener('click', event => {
+    if (!event.target.closest('.text-context-menu')) {
+        closeOcrContextMenus();
+    }
+}, true);
+
+// Per-photo menu.
+const imageActionMenu = document.createElement('div');
+imageActionMenu.className = 'image-action-menu';
+imageActionMenu.hidden = true;
+imageActionMenu.innerHTML = '<button type="button" data-image-action="rotate">Повернути на 90° вправо</button><hr><button type="button" data-image-action="delete" class="danger">Видалити фото</button><hr><button type="button" data-image-action="close" class="danger">Закрити</button>';
+document.body.append(imageActionMenu);
+
+document.querySelectorAll('.image-card-menu').forEach(button => {
+    button.addEventListener('click', event => {
+        event.stopImmediatePropagation();
+        const card = button.closest('.image-card');
+        imageActionMenu.dataset.imageId = card.dataset.imageId;
+        imageActionMenu.hidden = false;
+        imageActionMenu.style.left = Math.min(event.clientX, window.innerWidth - 230) + 'px';
+        imageActionMenu.style.top = Math.min(event.clientY, window.innerHeight - 170) + 'px';
+    }, true);
+});
+
+imageActionMenu.addEventListener('click', async event => {
+    const action = event.target.dataset.imageAction;
+    if (!action || action === 'close') {
+        imageActionMenu.hidden = true;
+        return;
+    }
+
+    const imageId = imageActionMenu.dataset.imageId;
+    if (action === 'delete' && !confirm('Видалити це фото без можливості відновлення?')) {
+        return;
+    }
+
+    try {
+        await request('/images/' + imageId + (action === 'rotate' ? '/rotate' : ''), action === 'rotate' ? 'POST' : 'DELETE');
+        window.location.reload();
+    } catch (error) {
+        status.textContent = error.message;
+    }
+});
+
+document.addEventListener('click', event => {
+    if (!event.target.closest('.image-action-menu') && !event.target.closest('.image-card-menu')) {
+        imageActionMenu.hidden = true;
+    }
+}, true);
+
+document.querySelector('#external-homeandriy')?.addEventListener('click', async event => {
+    event.preventDefault();
+    await request('/website', 'POST');
+});
+
+// AI agents: one table and one CRUD dialog instead of unlimited forms.
+const settingsTabCrud = document.querySelector('#settings-tab');
+settingsTabCrud.innerHTML = '<section class="settings-panel"><div class="settings-heading"><div><h2>AI-агенти</h2><p>API-токен шифрується локально й не показується після збереження.</p></div><button id="new-agent" class="primary-button" type="button">Додати агента</button></div><div id="agents-table"></div></section>';
+const agentCrudDialog = document.createElement('dialog');
+agentCrudDialog.innerHTML = '<form id="agent-crud" class="agent-form"><h2>AI-агент</h2><input type="hidden" name="id"><label>Назва<input name="name"></label><label>Постачальник<select name="provider"><option value="openai">OpenAI</option><option value="anthropic">Anthropic (Claude)</option><option value="gemini">Google Gemini</option></select></label><label>Модель<input name="model" required></label><label>API-токен<input name="token" type="password" autocomplete="off"></label><button class="primary-button">Зберегти</button><button type="button" class="close-agent-dialog">Скасувати</button><p class="agent-message"></p></form>';
+document.body.append(agentCrudDialog);
+const agentTable = qs('#agents-table');
+const openAgentCrud = agent => {
+    const form = qs('#agent-crud');
+    form.reset();
+    form.id.value = agent?.id || '';
+    form.name.value = agent?.name || '';
+    form.provider.value = agent?.provider || 'openai';
+    form.model.value = agent?.model || '';
+    form.token.required = !agent;
+    form.token.placeholder = agent ? 'Залиште порожнім, щоб не змінювати' : 'Введіть токен';
+    agentCrudDialog.showModal();
+};
+const renderAgentTable = () => {
+    agentTable.innerHTML = '<table><tr><th>Назва</th><th>Постачальник</th><th>Модель</th><th></th></tr>' + agents.map(agent => '<tr><td>' + escapeHtml(agent.name) + '</td><td>' + escapeHtml(providers[agent.provider]) + '</td><td>' + escapeHtml(agent.model) + '</td><td><button data-edit-agent="' + agent.id + '">Редагувати</button> <button data-delete-agent="' + agent.id + '" class="danger-button">Видалити</button></td></tr>').join('') + '</table>';
+    agents.forEach(agent => {
+        qs('[data-edit-agent="' + agent.id + '"]').onclick = () => openAgentCrud(agent);
+        qs('[data-delete-agent="' + agent.id + '"]').onclick = async () => {
+            if (confirm('Видалити AI-агента?')) {
+                await request('/ai-agents/' + agent.id, 'DELETE');
+                agents = agents.filter(item => item.id !== agent.id);
+                renderAgentTable();
+                renderAgentSelect();
+            }
+        };
+    });
+};
+qs('#new-agent').onclick = () => openAgentCrud();
+qs('#agent-crud').onsubmit = async event => {
+    event.preventDefault();
+    const form = event.target;
+    const data = Object.fromEntries(new FormData(form));
+    try {
+        const response = await request(data.id ? '/ai-agents/' + data.id : '/ai-agents', data.id ? 'PUT' : 'POST', data);
+        agents = data.id ? agents.map(agent => agent.id === data.id ? response.agent : agent) : [...agents, response.agent];
+        agentCrudDialog.close();
+        renderAgentTable();
+        renderAgentSelect();
+    } catch (error) { form.querySelector('.agent-message').textContent = error.message; }
+};
+qs('.close-agent-dialog').onclick = () => agentCrudDialog.close();
+renderAgentTable();

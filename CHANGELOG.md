@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.5.0 - 2026-08-20
+
+### Added
+
+- Group image cards by upload day, show full names, and provide rotate/delete menus.
+- Open the homeandriy website in the system browser.
+- Replace unlimited AI-agent forms with a table and one CRUD dialog.
+- Add an explicit close action and click-away closing for OCR context menus.
+
+
 ## v0.4.6 - 2026-08-20
 
 ### Added
