@@ -424,3 +424,34 @@ imageActionMenu.addEventListener('click', async event => {
     }
 }, true);
 imageActionMenu.innerHTML = '<button type="button" data-image-action="rotate"><span>↻</span>Повернути на 90° вправо</button><hr><button type="button" data-image-action="delete" class="danger"><span>⌫</span>Видалити фото</button><hr><button type="button" data-image-action="close" class="danger"><span>×</span>Закрити</button>';
+// NativePHP-safe menu dismissal: handle pointer down before any card or textarea handler.
+const forceHideMenus = () => {
+    unifiedOcrMenu.hidden = true;
+    imageActionMenu.hidden = true;
+    textContextMenu.hidden = true;
+    addDeviceButton.hidden = true;
+    addUnformattedDeviceButton.hidden = true;
+    closeOcrContextMenuButton.hidden = true;
+};
+
+window.addEventListener('pointerdown', event => {
+    const ocrAction = event.target.closest?.('[data-ocr-action]')?.dataset.ocrAction;
+    const imageAction = event.target.closest?.('[data-image-action]')?.dataset.imageAction;
+
+    if (ocrAction === 'close' || imageAction === 'close') {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        forceHideMenus();
+        return;
+    }
+
+    if (!event.target.closest?.('.context-action-menu') && !event.target.closest?.('.image-action-menu') && !event.target.closest?.('.image-card-menu')) {
+        forceHideMenus();
+    }
+}, true);
+
+window.addEventListener('mousedown', event => {
+    if (!event.target.closest?.('.context-action-menu') && !event.target.closest?.('.image-action-menu') && !event.target.closest?.('.image-card-menu')) {
+        forceHideMenus();
+    }
+}, true);

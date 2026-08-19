@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.5.2 - 2026-08-20
+
+### Fixed
+
+- Close both context menus via their Close actions and clicks outside them in NativePHP.
+
+
 ## v0.5.1 - 2026-08-20
 
 ### Fixed
