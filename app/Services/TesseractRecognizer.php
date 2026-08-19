@@ -35,10 +35,11 @@ final class TesseractRecognizer
                 }
 
                 $text = trim($result->output());
-                $score = $this->score($text);
+                $relevantText = $this->relevantText($text);
+                $score = $this->score($relevantText);
 
                 if ($score > $bestScore) {
-                    $bestText = $text;
+                    $bestText = $relevantText !== '' ? $relevantText : $text;
                     $bestScore = $score;
                 }
             }
@@ -85,9 +86,20 @@ final class TesseractRecognizer
         };
     }
 
+    private function relevantText(string $text): string
+    {
+        $lines = preg_split('/\R/', $text) ?: [];
+
+        $relevantLines = array_filter($lines, static function (string $line): bool {
+            return preg_match('/(?:[A-Z]{5,}|[A-Z0-9:._-]*\d[A-Z0-9:._-]{3,})/', strtoupper($line)) === 1;
+        });
+
+        return trim(implode(PHP_EOL, $relevantLines));
+    }
+
     private function score(string $text): int
     {
-        preg_match_all('/[A-Za-z0-9][A-Za-z0-9:._-]{3,}/', $text, $matches);
+        preg_match_all('/(?:[A-Z]{5,}|[A-Z0-9:._-]*\d[A-Z0-9:._-]{3,})/', strtoupper($text), $matches);
 
         return array_sum(array_map('strlen', $matches[0]));
     }
