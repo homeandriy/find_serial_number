@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.3.3 - 2026-08-20
+
+### Fixed
+
+- Render equipment timestamps in d.m.Y H:i:ss instead of ISO format.
+
 ## v0.3.2 - 2026-08-20
 
 ### Fixed
