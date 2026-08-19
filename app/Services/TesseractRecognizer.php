@@ -90,16 +90,14 @@ final class TesseractRecognizer
     {
         $lines = preg_split('/\R/', $text) ?: [];
 
-        $relevantLines = array_filter($lines, static function (string $line): bool {
-            return preg_match('/(?:[A-Z]{5,}|[A-Z0-9:._-]*\d[A-Z0-9:._-]{3,})/', strtoupper($line)) === 1;
-        });
+        $relevantLines = array_filter($lines, fn (string $line): bool => $this->score($line) > 0);
 
         return trim(implode(PHP_EOL, $relevantLines));
     }
 
     private function score(string $text): int
     {
-        preg_match_all('/(?:[A-Z]{5,}|[A-Z0-9:._-]*\d[A-Z0-9:._-]{3,})/', strtoupper($text), $matches);
+        preg_match_all('/(?:[A-Z][A-Z0-9:._-]{4,}|[0-9][A-Z0-9:._-]{4,})/', $text, $matches);
 
         return array_sum(array_map('strlen', $matches[0]));
     }
