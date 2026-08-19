@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.4.5 - 2026-08-20
+
+### Fixed
+
+- Filter equipment by complete Kyiv calendar days, including records up to 23:59:59.
+- Prevent an end date earlier than the start date and add labeled, individually clearable filters.
+
+## v0.4.4 - 2026-08-20
+
+### Fixed
+
+- Export equipment CSV with Windows-1251 encoding and a semicolon delimiter for Microsoft Excel.
+
 ## v0.4.1 - 2026-08-20
 
 ### Fixed
@@ -11,8 +24,6 @@
 ### Added
 
 - Excel export for filtered equipment records and Kyiv-localized date/time display.
-
-
 
 ## v0.3.3 - 2026-08-20
 

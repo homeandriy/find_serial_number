@@ -1,17 +1,177 @@
 <?php
+
 namespace App\Http\Controllers;
-use App\Models\Device;use App\Models\DeviceModel;use Illuminate\Http\JsonResponse;use Illuminate\Http\Request;
-final class DeviceController extends Controller{
- public function index(Request $r):JsonResponse{return response()->json(['devices'=>$this->query($r)->get()]);}
- public function models(Request $r):JsonResponse{$q=DeviceModel::query();foreach(['devices_type','device_service']as$f)if($r->filled($f))$q->where($f,$r->string($f));return response()->json(['models'=>$q->orderBy('devices_name')->get()]);}
- public function storeModel(Request $r):JsonResponse{return response()->json(['model'=>DeviceModel::create($this->modelData($r))],201);}
- public function updateModel(Request $r,DeviceModel $deviceModel):JsonResponse{$deviceModel->update($this->modelData($r));return response()->json(['model'=>$deviceModel]);}
- public function destroyModel(DeviceModel $deviceModel):JsonResponse{$deviceModel->delete();return response()->json(status:204);}
- public function store(Request $r):JsonResponse{return response()->json(['device'=>Device::create($this->deviceData($r))],201);}
- public function update(Request $r,Device $device):JsonResponse{$device->update($this->deviceData($r));return response()->json(['device'=>$device]);}
- public function destroy(Device $device):JsonResponse{$device->delete();return response()->json(status:204);}
- public function export(Request $r):\Symfony\Component\HttpFoundation\StreamedResponse{$items=$this->query($r)->get();return response()->streamDownload(function()use($items){$out=fopen('php://output','w');fwrite($out,"sep=;\r\n");$encode=fn(array $row)=>array_map(fn($value)=>iconv('UTF-8','Windows-1251//TRANSLIT',$value),$row);fputcsv($out,$encode(['Дата','Текст','Модель','Тип','Послуга']),';');foreach($items as$d)fputcsv($out,$encode([$d->registered_at->timezone('Europe/Kyiv')->format('d.m.Y H:i'),$d->recognized_text,$d->devices_name,$d->devices_type,$d->device_service]),';');fclose($out);},'equipment.csv',['Content-Type'=>'text/csv; charset=UTF-8']);}
- private function query(Request $r){$q=Device::query();foreach(['devices_type','device_service']as$f)if($r->filled($f))$q->where($f,$r->string($f));if($r->filled('date_from'))$q->whereDate('registered_at','>=',$r->string('date_from'));if($r->filled('date_to'))$q->whereDate('registered_at','<=',$r->string('date_to'));if($r->filled('search'))$q->where('recognized_text','like','%'.$r->string('search').'%');return$q->latest('registered_at')->latest('id');}
- private function modelData(Request $r):array{return$r->validate(['devices_name'=>['required','string','max:120'],'devices_type'=>['required','in:tuner,modem'],'device_service'=>['required','in:internet,television']]);}
- private function deviceData(Request $r):array{$d=$r->validate(['recognized_text'=>['required','string'],'device_model_id'=>['required','exists:device_models,id'],'registered_at'=>['required','date']]);$m=DeviceModel::findOrFail($d['device_model_id']);return[...$d,'devices_name'=>$m->devices_name,'devices_type'=>$m->devices_type,'device_service'=>$m->device_service];}
+
+use App\Models\Device;
+use App\Models\DeviceModel;
+use Carbon\CarbonImmutable;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\StreamedResponse;
+
+final class DeviceController extends Controller
+{
+    public function index(Request $request): JsonResponse
+    {
+        return response()->json(['devices' => $this->query($request)->get()]);
+    }
+
+    public function models(Request $request): JsonResponse
+    {
+        $query = DeviceModel::query();
+
+        foreach (['devices_type', 'device_service'] as $filter) {
+            if ($request->filled($filter)) {
+                $query->where($filter, $request->string($filter));
+            }
+        }
+
+        return response()->json(['models' => $query->orderBy('devices_name')->get()]);
+    }
+
+    public function storeModel(Request $request): JsonResponse
+    {
+        return response()->json(['model' => DeviceModel::create($this->modelData($request))], 201);
+    }
+
+    public function updateModel(Request $request, DeviceModel $deviceModel): JsonResponse
+    {
+        $deviceModel->update($this->modelData($request));
+
+        return response()->json(['model' => $deviceModel]);
+    }
+
+    public function destroyModel(DeviceModel $deviceModel): JsonResponse
+    {
+        $deviceModel->delete();
+
+        return response()->json(status: 204);
+    }
+
+    public function store(Request $request): JsonResponse
+    {
+        return response()->json(['device' => Device::create($this->deviceData($request))], 201);
+    }
+
+    public function update(Request $request, Device $device): JsonResponse
+    {
+        $device->update($this->deviceData($request));
+
+        return response()->json(['device' => $device]);
+    }
+
+    public function destroy(Device $device): JsonResponse
+    {
+        $device->delete();
+
+        return response()->json(status: 204);
+    }
+
+    public function export(Request $request): StreamedResponse
+    {
+        $items = $this->query($request)->get();
+
+        return response()->streamDownload(function () use ($items): void {
+            $output = fopen('php://output', 'w');
+            fwrite($output, "sep=;\r\n");
+
+            $encode = static fn (array $row): array => array_map(
+                static fn (string $value): string => iconv('UTF-8', 'Windows-1251//TRANSLIT', $value),
+                $row,
+            );
+
+            fputcsv($output, $encode(['Дата', 'Текст', 'Модель', 'Тип', 'Послуга']), ';');
+
+            foreach ($items as $device) {
+                fputcsv($output, $encode([
+                    $device->registered_at->timezone('Europe/Kyiv')->format('d.m.Y H:i'),
+                    $device->recognized_text,
+                    $device->devices_name,
+                    $device->devices_type,
+                    $device->device_service,
+                ]), ';');
+            }
+
+            fclose($output);
+        }, 'equipment.csv', ['Content-Type' => 'text/csv; charset=Windows-1251']);
+    }
+
+    private function query(Request $request)
+    {
+        $filters = $request->validate([
+            'date_from' => ['nullable', 'date_format:Y-m-d'],
+            'date_to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:date_from'],
+            'devices_type' => ['nullable', 'in:tuner,modem'],
+            'device_service' => ['nullable', 'in:internet,television'],
+            'search' => ['nullable', 'string'],
+        ]);
+
+        $query = Device::query();
+
+        foreach (['devices_type', 'device_service'] as $filter) {
+            if (! empty($filters[$filter])) {
+                $query->where($filter, $filters[$filter]);
+            }
+        }
+
+        if (! empty($filters['date_from'])) {
+            $from = CarbonImmutable::createFromFormat(
+                'Y-m-d H:i:s',
+                $filters['date_from'].' 00:00:00',
+                'Europe/Kyiv',
+            )->utc();
+
+            $lastDate = $filters['date_to'] ?? $filters['date_from'];
+            $to = CarbonImmutable::createFromFormat(
+                'Y-m-d H:i:s',
+                $lastDate.' 23:59:59',
+                'Europe/Kyiv',
+            )->utc();
+
+            $query->whereBetween('registered_at', [$from, $to]);
+        } elseif (! empty($filters['date_to'])) {
+            $to = CarbonImmutable::createFromFormat(
+                'Y-m-d H:i:s',
+                $filters['date_to'].' 23:59:59',
+                'Europe/Kyiv',
+            )->utc();
+
+            $query->where('registered_at', '<=', $to);
+        }
+
+        if (! empty($filters['search'])) {
+            $query->where('recognized_text', 'like', '%'.$filters['search'].'%');
+        }
+
+        return $query->latest('registered_at')->latest('id');
+    }
+
+    private function modelData(Request $request): array
+    {
+        return $request->validate([
+            'devices_name' => ['required', 'string', 'max:120'],
+            'devices_type' => ['required', 'in:tuner,modem'],
+            'device_service' => ['required', 'in:internet,television'],
+        ]);
+    }
+
+    private function deviceData(Request $request): array
+    {
+        $data = $request->validate([
+            'recognized_text' => ['required', 'string'],
+            'device_model_id' => ['required', 'exists:device_models,id'],
+            'registered_at' => ['required', 'date'],
+        ]);
+
+        $data['registered_at'] = CarbonImmutable::parse($data['registered_at'], 'Europe/Kyiv')->utc();
+
+        $model = DeviceModel::findOrFail($data['device_model_id']);
+
+        return [
+            ...$data,
+            'devices_name' => $model->devices_name,
+            'devices_type' => $model->devices_type,
+            'device_service' => $model->device_service,
+        ];
+    }
 }

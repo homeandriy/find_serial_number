@@ -33,3 +33,125 @@ qs('#device-crud').onsubmit=async e=>{e.preventDefault();const f=e.target,d=Obje
 const formatDeviceDate=value=>{const d=new Date(value);return String(d.getDate()).padStart(2,'0')+'.'+String(d.getMonth()+1).padStart(2,'0')+'.'+d.getFullYear()+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+':'+String(d.getSeconds()).padStart(2,'0')};document.querySelector('#device-crud [name=registered_at]').type='datetime-local';document.querySelector('#device-crud [name=registered_at]').value=new Date().toISOString().slice(0,16);
 const exportDevicesButton=document.createElement('button');exportDevicesButton.id='export-devices';exportDevicesButton.className='primary-button';exportDevicesButton.type='button';exportDevicesButton.textContent='Вигрузити в Excel';document.querySelector('#devices-list').before(exportDevicesButton);exportDevicesButton.onclick=()=>{const p=new URLSearchParams({search:qs('#df-search').value,date_from:qs('#df-from').value,date_to:qs('#df-to').value,devices_type:qs('#df-type').value,device_service:qs('#df-service').value});window.location='/devices-export?'+p};document.querySelector('.tabs').append(document.querySelector('[data-tab="settings"]'));
 exportDevicesButton.onclick=async()=>{const p=new URLSearchParams({search:qs('#df-search').value,date_from:qs('#df-from').value,date_to:qs('#df-to').value,devices_type:qs('#df-type').value,device_service:qs('#df-service').value});const r=await fetch('/devices-export?'+p);const b=await r.blob();const u=URL.createObjectURL(b),a=document.createElement('a');a.href=u;a.download='equipment.csv';a.click();URL.revokeObjectURL(u)};editDevice=async x=>{await loadModels();const f=qs('#device-crud');f.id.value=x.id;f.recognized_text.value=x.recognized_text;f.device_model_id.value=x.device_model_id;f.registered_at.value=x.registered_at.slice(0,16);qs('.cancel-device').hidden=false;window.scrollTo({top:0,behavior:'smooth'})};const editDialog=document.createElement('dialog');editDialog.innerHTML='<form method="dialog" id="device-modal-form" class="agent-form"><h2>Редагування обладнання</h2><input name="id" type="hidden"><label>Текст<textarea name="recognized_text" required></textarea></label><label>Модель<select name="device_model_id" required></select></label><label>Дата і час<input name="registered_at" type="datetime-local" required></label><button class="primary-button">Зберегти</button><button class="close-modal" type="button">Скасувати</button></form>';document.body.append(editDialog);editDevice=async x=>{await loadModels();const f=document.querySelector('#device-modal-form');f.id.value=x.id;f.recognized_text.value=x.recognized_text;f.device_model_id.innerHTML=qs('#device-model').innerHTML;f.device_model_id.value=x.device_model_id;f.registered_at.value=x.registered_at.slice(0,16);editDialog.showModal()};document.querySelector('#device-modal-form').onsubmit=async e=>{e.preventDefault();const d=Object.fromEntries(new FormData(e.target));await request('/devices/'+d.id,'PUT',d);editDialog.close();showDevices()};editDialog.querySelector('.close-modal').onclick=()=>editDialog.close();
+// Equipment filters: Kyiv calendar days, validation, and individual clear buttons.
+const kyivDateTimeParts = value => {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Europe/Kyiv',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hourCycle: 'h23',
+    }).formatToParts(new Date(value));
+
+    return Object.fromEntries(parts.filter(part => part.type !== 'literal').map(part => [part.type, part.value]));
+};
+const kyivDateTimeInput = value => {
+    const part = kyivDateTimeParts(value);
+    return part.year + '-' + part.month + '-' + part.day + 'T' + part.hour + ':' + part.minute;
+};
+const kyivDisplayDateTime = value => {
+    const part = kyivDateTimeParts(value);
+    return part.day + '.' + part.month + '.' + part.year + ' ' + part.hour + ':' + part.minute;
+};
+
+const deviceFiltersElement = devicesTab.querySelector('.filters');
+deviceFiltersElement.innerHTML = '<label class="filter-control">Пошук<input id="df-search" placeholder="Серійник або MAC"><button type="button" class="filter-clear" data-clear-filter="df-search" aria-label="Очистити пошук" hidden>×</button></label><label class="filter-control">Дата від<input id="df-from" type="date"><button type="button" class="filter-clear" data-clear-filter="df-from" aria-label="Очистити дату від" hidden>×</button></label><label class="filter-control">Дата до<input id="df-to" type="date"><button type="button" class="filter-clear" data-clear-filter="df-to" aria-label="Очистити дату до" hidden>×</button></label><label class="filter-control">Тип<select id="df-type"><option value="">Всі типи</option><option value="tuner">Тюнер</option><option value="modem">Модем</option></select><button type="button" class="filter-clear" data-clear-filter="df-type" aria-label="Очистити тип" hidden>×</button></label><label class="filter-control">Послуга<select id="df-service"><option value="">Всі послуги</option><option value="internet">Інтернет</option><option value="television">Телебачення</option></select><button type="button" class="filter-clear" data-clear-filter="df-service" aria-label="Очистити послугу" hidden>×</button></label><p id="device-filter-error" class="filter-error" hidden></p>';
+
+const deviceFilterError = qs('#device-filter-error');
+const updateDeviceFilterControls = () => {
+    const from = qs('#df-from');
+    const to = qs('#df-to');
+
+    from.max = to.value || '';
+    to.min = from.value || '';
+
+    document.querySelectorAll('[data-clear-filter]').forEach(button => {
+        button.hidden = !qs('#' + button.dataset.clearFilter).value;
+    });
+};
+const deviceQuery = () => {
+    const from = qs('#df-from').value;
+    const to = qs('#df-to').value;
+
+    if (from && to && to < from) {
+        deviceFilterError.textContent = 'Дата «до» не може бути раніше за дату «від».';
+        deviceFilterError.hidden = false;
+        return null;
+    }
+
+    deviceFilterError.hidden = true;
+
+    return new URLSearchParams({
+        search: qs('#df-search').value,
+        date_from: from,
+        date_to: to,
+        devices_type: qs('#df-type').value,
+        device_service: qs('#df-service').value,
+    });
+};
+
+showDevices = async () => {
+    updateDeviceFilterControls();
+
+    const query = deviceQuery();
+    if (!query) {
+        return;
+    }
+
+    const data = await request('/devices?' + query);
+    qs('#devices-list').innerHTML = '<table><tr><th>Дата</th><th>Текст</th><th>Модель</th><th>Тип</th><th>Послуга</th><th></th></tr>' + data.devices.map(device => '<tr><td>' + kyivDisplayDateTime(device.registered_at) + '</td><td>' + escapeHtml(device.recognized_text) + '</td><td>' + escapeHtml(device.devices_name) + '</td><td>' + label(device.devices_type) + '</td><td>' + label(device.device_service) + '</td><td><button data-edit-device="' + device.id + '">Редагувати</button> <button data-delete-device="' + device.id + '">Видалити</button></td></tr>').join('') + '</table>';
+
+    data.devices.forEach(device => {
+        qs('[data-edit-device="' + device.id + '"]').onclick = () => editDevice(device);
+        qs('[data-delete-device="' + device.id + '"]').onclick = async () => {
+            if (confirm('Видалити запис обладнання?')) {
+                await request('/devices/' + device.id, 'DELETE');
+                showDevices();
+            }
+        };
+    });
+};
+
+['#df-search', '#df-from', '#df-to'].forEach(selector => {
+    qs(selector).oninput = showDevices;
+});
+['#df-type', '#df-service'].forEach(selector => {
+    qs(selector).onchange = showDevices;
+});
+document.querySelectorAll('[data-clear-filter]').forEach(button => {
+    button.onclick = () => {
+        qs('#' + button.dataset.clearFilter).value = '';
+        showDevices();
+    };
+});
+
+exportDevicesButton.onclick = async () => {
+    const query = deviceQuery();
+    if (!query) {
+        return;
+    }
+
+    const response = await fetch('/devices-export?' + query);
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = 'equipment.csv';
+    anchor.click();
+    URL.revokeObjectURL(url);
+};
+
+qs('#device-crud [name=registered_at]').value = kyivDateTimeInput(new Date());
+editDevice = async device => {
+    await loadModels();
+
+    const form = document.querySelector('#device-modal-form');
+    form.id.value = device.id;
+    form.recognized_text.value = device.recognized_text;
+    form.device_model_id.innerHTML = qs('#device-model').innerHTML;
+    form.device_model_id.value = device.device_model_id;
+    form.registered_at.value = kyivDateTimeInput(device.registered_at);
+    editDialog.showModal();
+};
