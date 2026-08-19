@@ -347,3 +347,80 @@ qs('#agent-crud').onsubmit = async event => {
 };
 qs('.close-agent-dialog').onclick = () => agentCrudDialog.close();
 renderAgentTable();
+
+// Unified OCR context menu with icons, separators, and reliable dismissal.
+const unifiedOcrMenu = document.createElement('div');
+unifiedOcrMenu.className = 'context-action-menu';
+unifiedOcrMenu.hidden = true;
+unifiedOcrMenu.innerHTML = '<button type="button" data-ocr-action="copy"><span>⧉</span>Копіювати</button><button type="button" data-ocr-action="normal"><span>⌁</span>Додати в БД</button><button type="button" data-ocr-action="raw"><span>≡</span>Додати в БД неформатовано</button><hr><button type="button" data-ocr-action="close" class="danger"><span>×</span>Закрити</button>';
+document.body.append(unifiedOcrMenu);
+
+const hideAllContextActions = () => {
+    unifiedOcrMenu.hidden = true;
+    imageActionMenu.hidden = true;
+    closeOcrContextMenus();
+};
+
+document.addEventListener('contextmenu', event => {
+    const field = event.target.closest('.result-field');
+    const selection = field?.value.slice(field.selectionStart, field.selectionEnd) || '';
+
+    if (!selection) {
+        return;
+    }
+
+    event.preventDefault();
+    contextSelection = selection;
+    unifiedOcrMenu.hidden = false;
+    unifiedOcrMenu.style.left = Math.min(event.clientX, window.innerWidth - 270) + 'px';
+    unifiedOcrMenu.style.top = Math.min(event.clientY, window.innerHeight - 170) + 'px';
+    textContextMenu.hidden = true;
+    addDeviceButton.hidden = true;
+    addUnformattedDeviceButton.hidden = true;
+    closeOcrContextMenuButton.hidden = true;
+});
+
+unifiedOcrMenu.addEventListener('click', async event => {
+    const action = event.target.closest('[data-ocr-action]')?.dataset.ocrAction;
+
+    if (!action || action === 'close') {
+        hideAllContextActions();
+        return;
+    }
+
+    if (action === 'copy') {
+        try { await navigator.clipboard.writeText(contextSelection); } catch { status.textContent = 'Не вдалося скопіювати виділений текст'; }
+    } else {
+        qs('#device-text').value = action === 'normal' ? normalizeDeviceText(contextSelection) : contextSelection;
+        deviceTabButton.click();
+    }
+
+    hideAllContextActions();
+});
+
+document.addEventListener('pointerdown', event => {
+    if (!event.target.closest('.context-action-menu') && !event.target.closest('.image-action-menu') && !event.target.closest('.image-card-menu')) {
+        hideAllContextActions();
+    }
+}, true);
+
+imageActionMenu.addEventListener('click', async event => {
+    const action = event.target.closest('[data-image-action]')?.dataset.imageAction;
+
+    if (action !== 'rotate') {
+        return;
+    }
+
+    event.stopImmediatePropagation();
+    const imageId = imageActionMenu.dataset.imageId;
+
+    try {
+        await request('/images/' + imageId + '/rotate', 'POST');
+        const image = document.querySelector('.image-card[data-image-id="' + imageId + '"] img');
+        if (image) image.src = '/images/' + imageId + '?v=' + Date.now();
+        imageActionMenu.hidden = true;
+    } catch (error) {
+        status.textContent = error.message;
+    }
+}, true);
+imageActionMenu.innerHTML = '<button type="button" data-image-action="rotate"><span>↻</span>Повернути на 90° вправо</button><hr><button type="button" data-image-action="delete" class="danger"><span>⌫</span>Видалити фото</button><hr><button type="button" data-image-action="close" class="danger"><span>×</span>Закрити</button>';

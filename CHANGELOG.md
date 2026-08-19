@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.5.1 - 2026-08-20
+
+### Fixed
+
+- Use unified icon-based context menus with reliable close behavior.
+- Refresh the image preview immediately after rotation.
+
+
 ## v0.5.0 - 2026-08-20
 
 ### Added
