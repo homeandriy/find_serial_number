@@ -459,10 +459,11 @@ window.addEventListener('mousedown', event => {
 // Image folder setting.
 const folderSettings = document.createElement('section');
 folderSettings.className = 'settings-panel';
-folderSettings.innerHTML = '<h2>Папка зображень</h2><form id="image-directory-form" class="agent-form"><label>Шлях до папки<input name="path" required></label><button class="primary-button">Зберегти папку</button><p class="agent-message"></p></form></section>';
+folderSettings.innerHTML = '<h2>Папка зображень</h2><form id="image-directory-form" class="agent-form"><label>Шлях до папки<div class="setup-directory"><input name="path" readonly required><button id="choose-image-directory" class="tab-button" type="button">Вибрати папку</button></div></label><button class="primary-button">Зберегти папку</button><p class="agent-message"></p></form></section>';
 settingsTabCrud.prepend(folderSettings);
 const imageDirectoryForm = qs('#image-directory-form');
 request('/image-directory').then(payload => imageDirectoryForm.path.value = payload.path).catch(error => imageDirectoryForm.querySelector('.agent-message').textContent = error.message);
+qs('#choose-image-directory').onclick = async () => { const message = imageDirectoryForm.querySelector('.agent-message'); try { message.textContent = 'Оберіть папку у вікні Windows…'; const payload = await request('/image-directory/choose', 'POST'); if (payload.path) { imageDirectoryForm.path.value = payload.path; message.textContent = 'Папку вибрано. Натисніть «Зберегти папку».'; } else { message.textContent = 'Вибір папки скасовано.'; } } catch (error) { message.textContent = error.message; } };
 imageDirectoryForm.onsubmit = async event => {
  event.preventDefault();
  const message = imageDirectoryForm.querySelector('.agent-message');

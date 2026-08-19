@@ -84,6 +84,7 @@ return [
         'build',
         'temp',
         'content',
+        'images',
         'node_modules',
         '*/tests',
     ],

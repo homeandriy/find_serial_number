@@ -187,3 +187,14 @@
 
 - Local and AI-assisted equipment-label OCR with configurable encrypted AI agents.
 - Copy context menu for selected OCR text and an in-app version indicator.
+
+## v0.7.2 - 2026-08-20
+
+### Fixed
+
+- Exclude local images from the Windows package.
+
+### Changed
+
+- Add a native folder-picker button to image settings.
+
