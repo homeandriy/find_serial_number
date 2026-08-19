@@ -3,6 +3,13 @@ $projectDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
 $php = 'F:\Tools\php-8_5\php.exe'
 $builder = Join-Path $projectDirectory 'vendor\nativephp\desktop\resources\electron\electron-builder.mjs'
 if (-not (Test-Path -LiteralPath $php)) { throw "PHP 8.5 not found: $php" }
+$ocrArchive = Join-Path $projectDirectory 'resources\ocr\tesseract-runtime.zip'
+$ocrDirectory = Join-Path $projectDirectory 'extras\tesseract'
+if (-not (Test-Path -LiteralPath (Join-Path $ocrDirectory 'tesseract.exe'))) {
+    if (-not (Test-Path -LiteralPath $ocrArchive)) { throw "Tesseract runtime archive not found: $ocrArchive" }
+    New-Item -ItemType Directory -Force -Path $ocrDirectory | Out-Null
+    Expand-Archive -LiteralPath $ocrArchive -DestinationPath $ocrDirectory -Force
+}
 $builderContent = [IO.File]::ReadAllText($builder)
 $versionToken = '$' + '{version}'
 $extensionToken = '$' + '{ext}'

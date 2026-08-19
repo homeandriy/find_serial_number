@@ -15,3 +15,10 @@
 
 - Add a native folder-picker button to image settings.
 
+
+## v0.8.0 - 2026-08-20
+
+### Added
+
+- Bundle portable Tesseract OCR runtime into Windows builds for offline local recognition.
+
