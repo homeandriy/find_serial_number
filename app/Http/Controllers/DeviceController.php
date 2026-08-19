@@ -13,7 +13,7 @@ final class DeviceController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        return response()->json(['devices' => $this->query($request)->get()]);
+        return response()->json($this->listResponse($this->query($request), 'devices', $request));
     }
 
     public function models(Request $request): JsonResponse
@@ -26,7 +26,7 @@ final class DeviceController extends Controller
             }
         }
 
-        return response()->json(['models' => $query->orderBy('devices_name')->get()]);
+        return response()->json($this->listResponse($query->orderBy('devices_name'), 'models', $request));
     }
 
     public function storeModel(Request $request): JsonResponse
@@ -94,6 +94,25 @@ final class DeviceController extends Controller
 
             fclose($output);
         }, 'equipment.csv', ['Content-Type' => 'text/csv; charset=Windows-1251']);
+    }
+
+    private function listResponse($query, string $key, Request $request): array
+    {
+        $total = (clone $query)->count();
+
+        if ($total <= 5000) {
+            return [$key => $query->get(), 'pagination' => null];
+        }
+
+        $page = max(1, (int) $request->input('page', 1));
+        $perPage = 100;
+        $pages = (int) ceil($total / $perPage);
+        $page = min($page, $pages);
+
+        return [
+            $key => $query->forPage($page, $perPage)->get(),
+            'pagination' => ['page' => $page, 'per_page' => $perPage, 'total' => $total, 'pages' => $pages],
+        ];
     }
 
     private function query(Request $request)

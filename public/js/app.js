@@ -468,3 +468,24 @@ imageDirectoryForm.onsubmit = async event => {
  const message = imageDirectoryForm.querySelector('.agent-message');
  try { await request('/image-directory','PUT',Object.fromEntries(new FormData(imageDirectoryForm))); window.location.reload(); } catch(error) { message.textContent=error.message; }
 };
+
+// Server pagination for large equipment lists.
+let devicesPage = 1;
+const previousShowDevices = showDevices;
+showDevices = async () => {
+ updateDeviceFilterControls(); const query=deviceQuery(); if(!query)return; query.set('page',devicesPage);
+ const data=await request('/devices?'+query); const list=qs('#devices-list');
+ list.innerHTML='<table><tr><th>Дата</th><th>Текст</th><th>Модель</th><th>Тип</th><th>Послуга</th><th></th></tr>'+data.devices.map(d=>'<tr><td>'+kyivDisplayDateTime(d.registered_at)+'</td><td>'+escapeHtml(d.recognized_text)+'</td><td>'+escapeHtml(d.devices_name)+'</td><td>'+label(d.devices_type)+'</td><td>'+label(d.device_service)+'</td><td><button data-edit-device="'+d.id+'">Редагувати</button> <button data-delete-device="'+d.id+'">Видалити</button></td></tr>').join('')+'</table>'+(data.pagination?'<div class="pagination"><button data-page="prev" '+(data.pagination.page===1?'disabled':'')+'>‹</button><span>Сторінка '+data.pagination.page+' з '+data.pagination.pages+' · '+data.pagination.total+' записів</span><button data-page="next" '+(data.pagination.page===data.pagination.pages?'disabled':'')+'>›</button></div>':'');
+ data.devices.forEach(d=>{qs('[data-edit-device="'+d.id+'"]').onclick=()=>editDevice(d);qs('[data-delete-device="'+d.id+'"]').onclick=async()=>{if(confirm('Видалити запис обладнання?')){await request('/devices/'+d.id,'DELETE');showDevices()}}}); list.querySelector('[data-page="prev"]')?.addEventListener('click',()=>{devicesPage--;showDevices()});list.querySelector('[data-page="next"]')?.addEventListener('click',()=>{devicesPage++;showDevices()});
+};
+['#df-search','#df-from','#df-to','#df-type','#df-service'].forEach(s=>qs(s).addEventListener('change',()=>{devicesPage=1}));
+
+// Server pagination for large model lists.
+let modelsPage = 1;
+showModels = async () => {
+ const query=new URLSearchParams({devices_type:qs('#mf-type').value,device_service:qs('#mf-service').value,page:modelsPage});
+ const data=await request('/device-models?'+query);
+ qs('#models-list').innerHTML='<table><tr><th>Назва</th><th>Тип</th><th>Послуга</th><th></th></tr>'+data.models.map(m=>'<tr><td>'+escapeHtml(m.devices_name)+'</td><td>'+label(m.devices_type)+'</td><td>'+label(m.device_service)+'</td><td><button data-edit-model="'+m.id+'">Редагувати</button> <button data-delete-model="'+m.id+'" class="danger-button">Видалити</button></td></tr>').join('')+'</table>'+(data.pagination?'<div class="pagination"><button data-model-page="prev" '+(data.pagination.page===1?'disabled':'')+'>‹</button><span>Сторінка '+data.pagination.page+' з '+data.pagination.pages+' · '+data.pagination.total+' моделей</span><button data-model-page="next" '+(data.pagination.page===data.pagination.pages?'disabled':'')+'>›</button></div>':'');
+ data.models.forEach(m=>{qs('[data-edit-model="'+m.id+'"]').onclick=()=>openModel(m);qs('[data-delete-model="'+m.id+'"]').onclick=async()=>{if(confirm('Видалити модель?')){await request('/device-models/'+m.id,'DELETE');showModels();loadModels()}}});qs('[data-model-page="prev"]')?.addEventListener('click',()=>{modelsPage--;showModels()});qs('[data-model-page="next"]')?.addEventListener('click',()=>{modelsPage++;showModels()});
+};
+['#mf-type','#mf-service'].forEach(s=>qs(s).addEventListener('change',()=>{modelsPage=1}));

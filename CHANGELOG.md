@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.6.1 - 2026-08-20
+
+### Added
+
+- Paginate equipment and model lists by 100 rows only when a filtered result exceeds 5,000 records.
+
+### Changed
+
+- Export all rows matching the active filters, independent of the displayed page.
+
+
 ## v0.6.0 - 2026-08-20
 
 ### Added
