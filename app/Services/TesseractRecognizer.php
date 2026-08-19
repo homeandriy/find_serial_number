@@ -63,16 +63,30 @@ final class TesseractRecognizer
             return [$imagePath];
         }
 
-        $variants = [$imagePath];
+        $variants = [];
 
-        foreach ([-90, 90] as $angle) {
-            $rotated = imagerotate($image, $angle, 0);
-            $variant = $temporaryDirectory.'/rotated-'.$angle.'.jpg';
-            imagejpeg($rotated, $variant, 95);
-            $variants[] = $variant;
+        foreach ([0, -90, 90] as $angle) {
+            $rotated = $angle === 0 ? $image : imagerotate($image, $angle, 0);
+            $variants[] = $this->enhance($rotated, $temporaryDirectory, $angle);
         }
 
         return $variants;
+    }
+
+    private function enhance(\GdImage $image, string $temporaryDirectory, int $angle): string
+    {
+        $width = imagesx($image);
+        $height = imagesy($image);
+        $enhanced = imagecreatetruecolor($width * 2, $height * 2);
+
+        imagecopyresampled($enhanced, $image, 0, 0, 0, 0, $width * 2, $height * 2, $width, $height);
+        imagefilter($enhanced, IMG_FILTER_GRAYSCALE);
+        imagefilter($enhanced, IMG_FILTER_CONTRAST, -35);
+
+        $path = $temporaryDirectory.'/variant-'.$angle.'.jpg';
+        imagejpeg($enhanced, $path, 100);
+
+        return $path;
     }
 
     private function loadImage(string $imagePath): \GdImage|null
@@ -89,7 +103,6 @@ final class TesseractRecognizer
     private function relevantText(string $text): string
     {
         $lines = preg_split('/\R/', $text) ?: [];
-
         $relevantLines = array_filter($lines, fn (string $line): bool => $this->score($line) > 0);
 
         return trim(implode(PHP_EOL, $relevantLines));
