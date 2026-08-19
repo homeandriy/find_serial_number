@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.8.1 - 2026-08-20
+
+### Changed
+
+- Document portable OCR in the installer and development setup.
 ## v0.7.3 - 2026-08-20
 
 ### Changed
