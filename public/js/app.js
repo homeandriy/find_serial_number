@@ -155,3 +155,62 @@ editDevice = async device => {
     form.registered_at.value = kyivDateTimeInput(device.registered_at);
     editDialog.showModal();
 };
+
+// OCR-to-device input modes: normalized serial value or original text.
+const normalizeDeviceText = value => value.replace(/[^\p{L}\p{N}]/gu, '');
+
+const addUnformattedDeviceButton = document.createElement('button');
+addUnformattedDeviceButton.type = 'button';
+addUnformattedDeviceButton.className = 'text-context-menu';
+addUnformattedDeviceButton.textContent = 'Додати в БД неформатовано';
+addUnformattedDeviceButton.hidden = true;
+document.body.append(addUnformattedDeviceButton);
+
+document.addEventListener('contextmenu', event => {
+    const field = event.target.closest('.result-field');
+    const selection = field?.value.slice(field.selectionStart, field.selectionEnd) || '';
+
+    if (!selection) {
+        addUnformattedDeviceButton.hidden = true;
+        return;
+    }
+
+    addUnformattedDeviceButton.hidden = false;
+    addUnformattedDeviceButton.style.left = event.clientX + 'px';
+    addUnformattedDeviceButton.style.top = (event.clientY + 68) + 'px';
+    addUnformattedDeviceButton.dataset.value = selection;
+});
+
+addDeviceButton.addEventListener('click', event => {
+    event.stopImmediatePropagation();
+    document.querySelector('#device-text').value = normalizeDeviceText(addDeviceButton.dataset.value);
+    deviceTabButton.click();
+    addDeviceButton.hidden = true;
+}, true);
+
+addUnformattedDeviceButton.addEventListener('click', event => {
+    event.stopImmediatePropagation();
+    document.querySelector('#device-text').value = addUnformattedDeviceButton.dataset.value;
+    deviceTabButton.click();
+    addUnformattedDeviceButton.hidden = true;
+}, true);
+
+document.addEventListener('click', () => {
+    addUnformattedDeviceButton.hidden = true;
+});
+
+// Compact SVG icons make tabs easier to scan.
+const tabIcons = {
+    'Розпізнавання': '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h5M4 4v5M20 4h-5M20 4v5M4 20h5M4 20v-5M20 20h-5M20 20v-5M8 12h8M12 8v8"/></svg>',
+    'Обладнання': '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 9h8M8 13h3M8 17h8"/></svg>',
+    'Моделі': '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 8 4.5-8 4.5-8-4.5L12 3Z"/><path d="m4 12 8 4.5 8-4.5M4 16.5l8 4.5 8-4.5"/></svg>',
+    'Налаштування AI': '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg>',
+};
+document.querySelectorAll('.tab-button').forEach(button => {
+    const title = button.textContent.trim();
+    const icon = tabIcons[title];
+
+    if (icon) {
+        button.innerHTML = '<span class="tab-icon">' + icon + '</span><span>' + escapeHtml(title) + '</span>';
+    }
+});

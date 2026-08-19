@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.4.6 - 2026-08-20
+
+### Added
+
+- Add normalized and unformatted modes for moving selected OCR text into equipment.
+- Add icons to application tabs.
+
+### Changed
+
+- Trim saved equipment text and remove all line breaks.
+
+
 ## v0.4.5 - 2026-08-20
 
 ### Fixed

@@ -163,6 +163,7 @@ final class DeviceController extends Controller
             'registered_at' => ['required', 'date'],
         ]);
 
+        $data['recognized_text'] = trim(str_replace(["\r\n", "\r", "\n"], '', $data['recognized_text']));
         $data['registered_at'] = CarbonImmutable::parse($data['registered_at'], 'Europe/Kyiv')->utc();
 
         $model = DeviceModel::findOrFail($data['device_model_id']);
