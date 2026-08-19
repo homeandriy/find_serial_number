@@ -13,77 +13,55 @@ final class AiVisionRecognizer
     /** @param array{id: string, name: string, provider: string, model: string, token: string} $agent */
     public function recognize(array $agent, string $imagePath): string
     {
-        $contents = file_get_contents($imagePath);
-
-        if ($contents === false) {
-            throw new RuntimeException('Не вдалося прочитати файл зображення.');
-        }
-
-        $mimeType = mime_content_type($imagePath) ?: 'image/jpeg';
-        $encodedImage = base64_encode($contents);
+        [$contents, $mimeType] = $this->preparedImage($imagePath);
 
         return match ($agent['provider']) {
-            'openai' => $this->openAi($agent, $mimeType, $encodedImage),
-            'anthropic' => $this->anthropic($agent, $mimeType, $encodedImage),
-            'gemini' => $this->gemini($agent, $mimeType, $encodedImage),
+            'openai' => $this->openAi($agent, $mimeType, base64_encode($contents)),
+            'anthropic' => $this->anthropic($agent, $mimeType, base64_encode($contents)),
+            'gemini' => $this->gemini($agent, $mimeType, base64_encode($contents)),
             default => throw new RuntimeException('Цей AI-постачальник поки не підтримується.'),
         };
     }
 
-    /** @param array{model: string, token: string} $agent */
-    private function openAi(array $agent, string $mimeType, string $encodedImage): string
+    private function preparedImage(string $imagePath): array
     {
-        $response = $this->client()->withToken($agent['token'])->post('https://api.openai.com/v1/responses', [
-            'model' => $agent['model'],
-            'input' => [[
-                'role' => 'user',
-                'content' => [
-                    ['type' => 'input_text', 'text' => self::Prompt],
-                    ['type' => 'input_image', 'image_url' => "data:{$mimeType};base64,{$encodedImage}", 'detail' => 'high'],
-                ],
-            ]],
-        ]);
+        $source = @imagecreatefromstring((string) file_get_contents($imagePath));
 
-        $this->ensureSuccessful($response->status());
-        return $this->text(data_get($response->json(), 'output_text'));
+        if ($source === false) {
+            throw new RuntimeException('Не вдалося прочитати файл зображення.');
+        }
+
+        $width = imagesx($source);
+        $height = imagesy($source);
+        $scale = min(1, 1800 / max($width, $height));
+        $target = imagecreatetruecolor((int) round($width * $scale), (int) round($height * $scale));
+        imagecopyresampled($target, $source, 0, 0, 0, 0, imagesx($target), imagesy($target), $width, $height);
+        ob_start();
+        imagejpeg($target, null, 85);
+        $contents = (string) ob_get_clean();
+        imagedestroy($target);
+        imagedestroy($source);
+
+        return [$contents, 'image/jpeg'];
     }
 
-    /** @param array{model: string, token: string} $agent */
-    private function anthropic(array $agent, string $mimeType, string $encodedImage): string
+    private function openAi(array $agent, string $mimeType, string $image): string
     {
-        $response = $this->client()->withHeaders([
-            'x-api-key' => $agent['token'],
-            'anthropic-version' => '2023-06-01',
-        ])->post('https://api.anthropic.com/v1/messages', [
-            'model' => $agent['model'],
-            'max_tokens' => 1200,
-            'messages' => [[
-                'role' => 'user',
-                'content' => [
-                    ['type' => 'image', 'source' => ['type' => 'base64', 'media_type' => $mimeType, 'data' => $encodedImage]],
-                    ['type' => 'text', 'text' => self::Prompt],
-                ],
-            ]],
-        ]);
-
-        $this->ensureSuccessful($response->status());
-        return $this->text(data_get($response->json(), 'content.0.text'));
+        $response = $this->client()->withToken($agent['token'])->post('https://api.openai.com/v1/responses', ['model' => $agent['model'], 'input' => [['role' => 'user', 'content' => [['type' => 'input_text', 'text' => self::Prompt], ['type' => 'input_image', 'image_url' => "data:{$mimeType};base64,{$image}", 'detail' => 'high']]]]]);
+        return $this->responseText($response->status(), $response->body(), $agent['token'], data_get($response->json(), 'output_text'));
     }
 
-    /** @param array{model: string, token: string} $agent */
-    private function gemini(array $agent, string $mimeType, string $encodedImage): string
+    private function anthropic(array $agent, string $mimeType, string $image): string
     {
-        $response = $this->client()->withHeaders(['x-goog-api-key' => $agent['token']])->post(
-            'https://generativelanguage.googleapis.com/v1beta/models/'.rawurlencode($agent['model']).':generateContent',
-            ['contents' => [['parts' => [
-                ['inline_data' => ['mime_type' => $mimeType, 'data' => $encodedImage]],
-                ['text' => self::Prompt],
-            ]]]],
-        );
+        $response = $this->client()->withHeaders(['x-api-key' => $agent['token'], 'anthropic-version' => '2023-06-01'])->post('https://api.anthropic.com/v1/messages', ['model' => $agent['model'], 'max_tokens' => 1200, 'messages' => [['role' => 'user', 'content' => [['type' => 'image', 'source' => ['type' => 'base64', 'media_type' => $mimeType, 'data' => $image]], ['type' => 'text', 'text' => self::Prompt]]]]]);
+        return $this->responseText($response->status(), $response->body(), $agent['token'], data_get($response->json(), 'content.0.text'));
+    }
 
-        $this->ensureSuccessful($response->status());
+    private function gemini(array $agent, string $mimeType, string $image): string
+    {
+        $response = $this->client()->withHeaders(['x-goog-api-key' => $agent['token']])->post('https://generativelanguage.googleapis.com/v1beta/models/'.rawurlencode($agent['model']).':generateContent', ['contents' => [['parts' => [['inline_data' => ['mime_type' => $mimeType, 'data' => $image]], ['text' => self::Prompt]]]]]);
         $parts = data_get($response->json(), 'candidates.0.content.parts', []);
-        return $this->text(collect($parts)->pluck('text')->filter()->implode("\n"));
+        return $this->responseText($response->status(), $response->body(), $agent['token'], collect($parts)->pluck('text')->filter()->implode("\n"));
     }
 
     private function client(): PendingRequest
@@ -91,21 +69,18 @@ final class AiVisionRecognizer
         return Http::acceptJson()->timeout(90)->connectTimeout(15);
     }
 
-    private function ensureSuccessful(int $status): void
+    private function responseText(int $status, string $raw, string $token, mixed $text): string
     {
+        $raw = str_replace($token, '***', $raw);
+
         if ($status < 200 || $status >= 300) {
-            throw new RuntimeException("AI-постачальник повернув помилку HTTP {$status}.");
-        }
-    }
-
-    private function text(mixed $text): string
-    {
-        $text = is_string($text) ? trim($text) : '';
-
-        if ($text === '') {
-            throw new RuntimeException('AI-постачальник не повернув текст.');
+            throw new RuntimeException("HTTP {$status}: {$raw}");
         }
 
-        return $text;
+        if (! is_string($text) || trim($text) === '') {
+            throw new RuntimeException("AI-постачальник не повернув текст. Сира відповідь: {$raw}");
+        }
+
+        return trim($text);
     }
 }
