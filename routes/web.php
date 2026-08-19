@@ -10,6 +10,7 @@ Route::get('/', function (ImageCatalog $catalog, AiAgentRepository $agents) {
         'images' => $catalog->all(),
         'imageDirectory' => config('serial-number.image_directory'),
         'agents' => $agents->all(),
+        'appVersion' => trim((string) file_get_contents(base_path('VERSION'))),
     ]);
 });
 
