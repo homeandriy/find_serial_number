@@ -1,11 +1,23 @@
 # Changelog
 
+## v0.7.0 - 2026-08-20
+
+### Added
+
+- Add the Windows installer build script build-installer.bat.
+- Provide an assisted NSIS installer with a placeholder license agreement, install-directory choice, progress, and launch option.
+- Show a first-run setup screen that requires agreement acceptance and lets the user choose the image folder with the native Windows folder dialog.
+
+### Changed
+
+- Use the application release version in NativePHP Windows build metadata.
+- Set the unique Windows application identifier for Serial Vision.
+
 ## v0.6.6 - 2026-08-20
 
 ### Changed
 
 - Replace the default Laravel README with Ukrainian documentation for installing, configuring and using the desktop application.
-
 
 ## v0.6.5 - 2026-08-20
 

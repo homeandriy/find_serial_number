@@ -12,6 +12,7 @@ Route::get('/', function (ImageCatalog $catalog, AiAgentRepository $agents) {
         'imageDirectory' => $catalog->configuredDirectory(),
         'agents' => $agents->all(),
         'appVersion' => trim((string) file_get_contents(base_path('VERSION'))),
+        'setupRequired' => app(\App\Services\ImageDirectorySettings::class)->setupRequired(),
     ]);
 });
 
@@ -21,6 +22,8 @@ Route::delete('/images/{image}', [ImageRecognitionController::class, 'deleteImag
 Route::get('/image-directory', [ImageRecognitionController::class, 'imageDirectory']);
 Route::post('/image-directory/open', [ImageRecognitionController::class, 'openImageDirectory']);
 Route::put('/image-directory', [ImageRecognitionController::class, 'updateImageDirectory']);
+Route::post('/image-directory/choose', [ImageRecognitionController::class, 'chooseImageDirectory']);
+Route::post('/setup', [ImageRecognitionController::class, 'completeSetup']);
 Route::post('/website', [ImageRecognitionController::class, 'openWebsite']);
 Route::post('/images/{image}/recognize', [ImageRecognitionController::class, 'recognize'])->where('image', '[A-Za-z0-9_-]+');
 Route::post('/images/{image}/recognize-ai/{agent}', [ImageRecognitionController::class, 'recognizeAi'])->where(['image' => '[A-Za-z0-9_-]+', 'agent' => '[A-Za-z0-9-]+']);

@@ -7,4 +7,18 @@
 @else @foreach (collect($images)->groupBy('uploaded_on') as $dayImages)<section class="image-day"><div class="image-day-divider"><span>{{ $dayImages->first()['uploaded_label'] }}</span></div><div class="image-grid">@foreach ($dayImages as $image)<article class="image-card" data-image-id="{{ $image['id'] }}" data-image-name="{{ $image['name'] }}"><button class="image-preview" type="button"><img src="{{ url('/images/'.$image['id']) }}" alt="{{ $image['name'] }}" loading="lazy"></button><div class="image-card-footer"><span title="{{ $image['name'] }}">{{ $image['name'] }}</span><button class="image-card-menu" type="button" aria-label="Меню фото">⋮</button></div></article>@endforeach</div></section>@endforeach @endif
 </aside><section class="recognition-panel" aria-live="polite"><div class="panel-heading"><h2>Результати</h2><span id="status">Виберіть зображення</span></div><p id="selected-image" class="selected-image">Текст буде розпізнано після натискання на зображення зліва.</p><label class="result-label" for="local-result">Локальний OCR</label><textarea id="local-result" class="result-field" readonly spellcheck="false">Результат з’явиться тут.</textarea><div class="ai-toolbar"><label for="agent-select">AI-агент</label><select id="agent-select" disabled><option value="">Спочатку додайте агента</option></select><button id="recognize-ai" class="primary-button" type="button" disabled>Розпізнати AI</button></div><label class="result-label" for="ai-result">AI-розпізнавання</label><textarea id="ai-result" class="result-field" readonly disabled spellcheck="false">Додайте та виберіть AI-агента у налаштуваннях.</textarea></section></section></section>
 <section id="settings-tab" class="tab-content"><section class="settings-panel"><div class="settings-heading"><div><h2>AI-агенти</h2><p>Додавайте скільки завгодно постачальників. API-токен шифрується локально й не показується після збереження.</p></div><button id="add-agent" class="primary-button" type="button">Додати агента</button></div><div id="agent-forms" class="agent-forms"></div></section></section>
-<footer class="app-version">by <a id="external-homeandriy" href="https://webbooks.com.ua">homeandriy</a> · v{{ $appVersion }}</footer></main><script>window.initialAiAgents=@json($agents);</script><script src="{{ asset('js/app.js') }}"></script></body></html>
+<footer class="app-version">by <a id="external-homeandriy" href="https://webbooks.com.ua">homeandriy</a> · v{{ $appVersion }}</footer></main><script>window.initialAiAgents=@json($agents);</script><script src="{{ asset('js/app.js') }}"></script>@if ($setupRequired)
+<section id="first-run-setup" class="first-run-setup" role="dialog" aria-modal="true" aria-labelledby="setup-title">
+  <div class="first-run-card">
+    <p class="eyebrow">Перший запуск</p>
+    <h2 id="setup-title">Налаштування Serial Vision</h2>
+    <p>Оберіть папку з фотографіями. Її завжди можна змінити у налаштуваннях програми.</p>
+    <div class="license-placeholder"><strong>Ліцензійна угода (заглушка)</strong><p>Програма надається «як є» для локальної обробки обладнання та зображень. Користувач відповідає за законність обробки даних і резервні копії.</p></div>
+    <label class="setup-agreement"><input id="setup-accepted" type="checkbox"> Я прочитав(-ла) та погоджуюся з умовами.</label>
+    <label>Папка з зображеннями<div class="setup-directory"><input id="setup-image-directory" type="text" readonly placeholder="Оберіть папку"><button id="choose-setup-directory" class="tab-button" type="button">Вибрати</button></div></label>
+    <p id="setup-message" class="agent-message"></p>
+    <button id="complete-setup" class="primary-button" type="button" disabled>Завершити та відкрити програму</button>
+  </div>
+</section>
+@endif
+</body></html>
