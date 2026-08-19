@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.5.4 - 2026-08-20
+
+### Fixed
+
+- Verify that a rotated image is physically written to disk before reporting success.
+
+
 ## v0.5.3 - 2026-08-20
 
 ### Fixed

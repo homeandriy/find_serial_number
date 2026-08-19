@@ -84,6 +84,8 @@ final class ImageCatalog
             throw new RuntimeException('Не вдалося відкрити зображення для повороту.');
         }
 
+        $sourceWidth = imagesx($source);
+        $sourceHeight = imagesy($source);
         $rotated = imagerotate($source, -90, 0);
 
         if ($rotated === false) {
@@ -94,17 +96,27 @@ final class ImageCatalog
         imagealphablending($rotated, false);
         imagesavealpha($rotated, true);
 
+        $temporaryPath = $path.'.rotating';
         $saved = match ($extension) {
-            'jpg', 'jpeg' => imagejpeg($rotated, $path, 92),
-            'png' => imagepng($rotated, $path),
-            'webp' => imagewebp($rotated, $path, 92),
+            'jpg', 'jpeg' => imagejpeg($rotated, $temporaryPath, 92),
+            'png' => imagepng($rotated, $temporaryPath),
+            'webp' => imagewebp($rotated, $temporaryPath, 92),
         };
 
         imagedestroy($source);
         imagedestroy($rotated);
 
-        if (! $saved) {
+        if (! $saved || ! copy($temporaryPath, $path)) {
+            @unlink($temporaryPath);
             throw new RuntimeException('Не вдалося зберегти повернуте зображення.');
+        }
+
+        @unlink($temporaryPath);
+        clearstatcache(true, $path);
+        $size = getimagesize($path);
+
+        if ($size === false || $size[0] !== $sourceHeight || $size[1] !== $sourceWidth) {
+            throw new RuntimeException('Поворот не було підтверджено у файлі.');
         }
     }
 
