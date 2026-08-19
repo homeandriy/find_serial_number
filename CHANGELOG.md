@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.6.4 - 2026-08-20
+
+### Changed
+
+- Ignore local image files while retaining the images directory in Git.
+
+
 ## v0.6.3 - 2026-08-20
 
 ### Changed
