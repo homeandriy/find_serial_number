@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.3.0 - 2026-08-20
+
+### Added
+
+- Full CRUD for device models and saved equipment with filters, editing, and confirmed deletion.
+
 ## v0.2.0 - 2026-08-19
 
 ### Added

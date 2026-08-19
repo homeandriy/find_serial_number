@@ -25,5 +25,9 @@ Route::delete('/ai-agents/{agent}', [ImageRecognitionController::class, 'deleteA
 
 Route::get('/devices', [DeviceController::class, 'index']);
 Route::post('/devices', [DeviceController::class, 'store']);
+Route::put('/devices/{device}', [DeviceController::class, 'update']);
+Route::delete('/devices/{device}', [DeviceController::class, 'destroy']);
 Route::get('/device-models', [DeviceController::class, 'models']);
 Route::post('/device-models', [DeviceController::class, 'storeModel']);
+Route::put('/device-models/{deviceModel}', [DeviceController::class, 'updateModel']);
+Route::delete('/device-models/{deviceModel}', [DeviceController::class, 'destroyModel']);
