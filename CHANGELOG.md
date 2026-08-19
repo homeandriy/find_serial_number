@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.4.0 - 2026-08-20
+
+### Added
+
+- Excel export for filtered equipment records and Kyiv-localized date/time display.
+
+
+
 ## v0.3.3 - 2026-08-20
 
 ### Fixed

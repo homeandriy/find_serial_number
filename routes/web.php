@@ -31,3 +31,4 @@ Route::get('/device-models', [DeviceController::class, 'models']);
 Route::post('/device-models', [DeviceController::class, 'storeModel']);
 Route::put('/device-models/{deviceModel}', [DeviceController::class, 'updateModel']);
 Route::delete('/device-models/{deviceModel}', [DeviceController::class, 'destroyModel']);
+Route::get('/devices-export', [DeviceController::class, 'export']);
