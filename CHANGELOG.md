@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.6.2 - 2026-08-20
+
+### Added
+
+- Add system Help and About menu entries for the desktop application.
+
+
 ## v0.6.1 - 2026-08-20
 
 ### Added
