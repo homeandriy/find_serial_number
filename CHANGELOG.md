@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.6.3 - 2026-08-20
+
+### Changed
+
+- Set NativePHP application metadata to Обладнання та дані by homeandriy.
+
+
 ## v0.6.2 - 2026-08-20
 
 ### Added
