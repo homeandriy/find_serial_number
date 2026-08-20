@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.10.0 - 2026-08-20
+
+### Added
+
+- Show an in-app «Про програму» window from the Help menu with version and developer contact details.
+- Add a production startup splash screen while the desktop application loads.
+- Add «Переглянути» to each image menu to open the photo in the default Windows image viewer.
+
+### Fixed
+
+- Make image-menu actions independent so viewing, rotating and deleting photos cannot trigger one another.
 ## v0.9.0 - 2026-08-20
 
 ### Added

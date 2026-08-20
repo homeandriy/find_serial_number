@@ -270,19 +270,18 @@ document.querySelectorAll('.image-card-menu').forEach(button => {
 });
 
 imageActionMenu.addEventListener('click', async event => {
-    const action = event.target.dataset.imageAction;
-    if (!action || action === 'close') {
-        imageActionMenu.hidden = true;
+    const action = event.target.closest('[data-image-action]')?.dataset.imageAction;
+
+    if (action !== 'delete') {
         return;
     }
 
-    const imageId = imageActionMenu.dataset.imageId;
-    if (action === 'delete' && !confirm('Видалити це фото без можливості відновлення?')) {
+    if (!confirm('Видалити це фото без можливості відновлення?')) {
         return;
     }
 
     try {
-        await request('/images/' + imageId + (action === 'rotate' ? '/rotate' : ''), action === 'rotate' ? 'POST' : 'DELETE');
+        await request('/images/' + imageActionMenu.dataset.imageId, 'DELETE');
         window.location.reload();
     } catch (error) {
         status.textContent = error.message;
@@ -407,7 +406,7 @@ document.addEventListener('pointerdown', event => {
 imageActionMenu.addEventListener('click', async event => {
     const action = event.target.closest('[data-image-action]')?.dataset.imageAction;
 
-    if (action !== 'rotate') {
+    if (!['rotate', 'view'].includes(action)) {
         return;
     }
 
@@ -415,6 +414,12 @@ imageActionMenu.addEventListener('click', async event => {
     const imageId = imageActionMenu.dataset.imageId;
 
     try {
+        if (action === 'view') {
+            await request('/images/' + imageId + '/open', 'POST');
+            imageActionMenu.hidden = true;
+            return;
+        }
+
         await request('/images/' + imageId + '/rotate', 'POST');
         const image = document.querySelector('.image-card[data-image-id="' + imageId + '"] img');
         if (image) image.src = '/images/' + imageId + '?v=' + Date.now();
@@ -423,7 +428,7 @@ imageActionMenu.addEventListener('click', async event => {
         status.textContent = error.message;
     }
 }, true);
-imageActionMenu.innerHTML = '<button type="button" data-image-action="rotate"><span>↻</span>Повернути на 90° вправо</button><hr><button type="button" data-image-action="delete" class="danger"><span>⌫</span>Видалити фото</button><hr><button type="button" data-image-action="close" class="danger"><span>×</span>Закрити</button>';
+imageActionMenu.innerHTML = '<button type="button" data-image-action="rotate"><span>↻</span>Повернути на 90° вправо</button><button type="button" data-image-action="view"><span>◉</span>Переглянути</button><hr><button type="button" data-image-action="delete" class="danger"><span>⌫</span>Видалити фото</button><hr><button type="button" data-image-action="close" class="danger"><span>×</span>Закрити</button>';
 // NativePHP-safe menu dismissal: handle pointer down before any card or textarea handler.
 const forceHideMenus = () => {
     unifiedOcrMenu.hidden = true;
@@ -610,3 +615,26 @@ loadModels = async () => {
 document.querySelector('#device-crud').addEventListener('submit', () => {
     window.setTimeout(showPopularModels, 400);
 });
+// About dialog is shown from the NativePHP application menu event.
+const aboutDialog = document.querySelector('#about-dialog');
+const showAboutDialog = () => {
+    if (aboutDialog && !aboutDialog.open) {
+        aboutDialog.showModal();
+    }
+};
+const openDeveloperWebsite = async () => {
+    try {
+        await request('/website', 'POST');
+    } catch (error) {
+        window.open('https://webbooks.com.ua', '_blank', 'noopener');
+    }
+};
+document.querySelector('#about-close')?.addEventListener('click', () => aboutDialog?.close());
+document.querySelector('#about-open-site')?.addEventListener('click', openDeveloperWebsite);
+document.querySelector('#about-external-homeandriy')?.addEventListener('click', event => {
+    event.preventDefault();
+    openDeveloperWebsite();
+});
+const registerAboutNativeEvent = () => window.Native?.on?.('App\\Events\\ShowAboutDialog', showAboutDialog);
+window.addEventListener('native:init', registerAboutNativeEvent, { once: true });
+registerAboutNativeEvent();

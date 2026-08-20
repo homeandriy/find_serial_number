@@ -26,6 +26,21 @@ final class ImageRecognitionController extends Controller
     {
         try { $catalog->rotateClockwise($image); return response()->json(status: 204); } catch (RuntimeException $exception) { return response()->json(['message' => $exception->getMessage()], 422); }
     }
+    public function openImage(string $image, ImageCatalog $catalog): JsonResponse
+    {
+        try {
+            $error = Shell::openFile($catalog->pathFor($image));
+
+            if ($error !== '') {
+                return response()->json(['message' => "Не вдалося відкрити зображення: {$error}"], 422);
+            }
+
+            return response()->json(status: 204);
+        } catch (RuntimeException $exception) {
+            return response()->json(['message' => $exception->getMessage()], 422);
+        }
+    }
+
     public function deleteImage(string $image, ImageCatalog $catalog): JsonResponse
     {
         try { $catalog->delete($image); return response()->json(status: 204); } catch (RuntimeException $exception) { return response()->json(['message' => $exception->getMessage()], 422); }

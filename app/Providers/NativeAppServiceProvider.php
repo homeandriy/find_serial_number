@@ -2,16 +2,16 @@
 
 namespace App\Providers;
 
+use App\Events\ShowAboutDialog;
 use App\Services\ApplicationLaunchTracker;
-
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Event;
+use Native\Desktop\Contracts\ProvidesPhpIni;
 use Native\Desktop\Events\AutoUpdater\UpdateAvailable;
 use Native\Desktop\Events\AutoUpdater\UpdateDownloaded;
 use Native\Desktop\Facades\AutoUpdater;
 use Native\Desktop\Facades\Menu;
 use Native\Desktop\Facades\Window;
-use Native\Desktop\Contracts\ProvidesPhpIni;
 
 class NativeAppServiceProvider implements ProvidesPhpIni
 {
@@ -26,8 +26,11 @@ class NativeAppServiceProvider implements ProvidesPhpIni
             Menu::edit(),
             Menu::view(),
             Menu::window(),
-            Menu::label('Help')->submenu(Menu::about('Про програму')),
+            Menu::make(
+                Menu::label('Про програму')->event(ShowAboutDialog::class),
+            )->label('Help'),
         );
+
         Window::open()->width(1920)->height(1080);
 
         if (app()->environment('production')) {
@@ -48,7 +51,6 @@ class NativeAppServiceProvider implements ProvidesPhpIni
      */
     public function phpIni(): array
     {
-        return [
-        ];
+        return [];
     }
 }
