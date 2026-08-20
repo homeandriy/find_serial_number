@@ -1,6 +1,11 @@
 $ErrorActionPreference = 'Stop'
 $projectDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
-$php = 'F:\Tools\php-8_5\php.exe'
+$localPhp = 'F:\Tools\php-8_5\php.exe'
+$php = if (Test-Path -LiteralPath $localPhp) {
+    $localPhp
+} else {
+    (Get-Command php -ErrorAction Stop).Source
+}
 $builder = Join-Path $projectDirectory 'vendor\nativephp\desktop\resources\electron\electron-builder.mjs'
 if (-not (Test-Path -LiteralPath $php)) { throw "PHP 8.5 not found: $php" }
 $ocrArchive = Join-Path $projectDirectory 'resources\ocr\tesseract-runtime.zip'
@@ -10,11 +15,13 @@ if (-not (Test-Path -LiteralPath (Join-Path $ocrDirectory 'tesseract.exe'))) {
     New-Item -ItemType Directory -Force -Path $ocrDirectory | Out-Null
     Expand-Archive -LiteralPath $ocrArchive -DestinationPath $ocrDirectory -Force
 }
+& (Join-Path $projectDirectory 'prepare-nativephp-electron.ps1') -ProjectDirectory $projectDirectory
 $builderContent = [IO.File]::ReadAllText($builder)
 $versionToken = '$' + '{version}'
 $extensionToken = '$' + '{ext}'
-if (-not $builderContent.Contains('signAndEditExecutable: false')) {
-    $builderContent = $builderContent.Replace('    win: {', '    win: {' + [Environment]::NewLine + '        signAndEditExecutable: false,')
+$builderContent = $builderContent.Replace('        signAndEditExecutable: false,' + [Environment]::NewLine, '')
+if (-not $builderContent.Contains("icon: join(process.env.APP_PATH, 'public', 'icon.ico'),")) {
+    $builderContent = $builderContent.Replace('    win: {', "    win: {" + [Environment]::NewLine + "        icon: join(process.env.APP_PATH, 'public', 'icon.ico'),")
 }
 if (-not $builderContent.Contains('Serial Vision Installer version')) {
     $nsisConfig = '    nsis: {' + [Environment]::NewLine + '        oneClick: false,' + [Environment]::NewLine + '        allowToChangeInstallationDirectory: true,' + [Environment]::NewLine + '        runAfterFinish: true,' + [Environment]::NewLine + "        license: join(process.env.APP_PATH, 'LICENSE.txt'),"
@@ -34,4 +41,28 @@ try {
 $version = (Get-Content -LiteralPath (Join-Path $projectDirectory 'VERSION') -Raw).Trim()
 $installer = Join-Path $projectDirectory ("nativephp\electron\dist\Serial Vision Installer version $version.exe")
 if (-not (Test-Path -LiteralPath $installer)) { throw "Installer was not created: $installer" }
+$blockmap = "$installer.blockmap"
+if (-not (Test-Path -LiteralPath $blockmap)) { throw "Installer blockmap was not created: $blockmap" }
+
+$installerInfo = Get-Item -LiteralPath $installer
+$stream = [IO.File]::OpenRead($installer)
+try {
+    $sha512 = [Convert]::ToBase64String([Security.Cryptography.SHA512]::Create().ComputeHash($stream))
+} finally {
+    $stream.Dispose()
+}
+
+$latestYml = @"
+version: $version
+files:
+  - url: $($installerInfo.Name)
+    sha512: $sha512
+    size: $($installerInfo.Length)
+path: $($installerInfo.Name)
+sha512: $sha512
+releaseDate: '$((Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ss.fffZ'))'
+"@
+[IO.File]::WriteAllText((Join-Path $projectDirectory 'nativephp\electron\dist\latest.yml'), $latestYml, [Text.UTF8Encoding]::new($false))
+
 Write-Host "Installer created: $installer"
+Write-Host "Updater metadata created: $(Join-Path $projectDirectory 'nativephp\electron\dist\latest.yml')"

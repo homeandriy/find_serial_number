@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Services\ApplicationLaunchTracker;
+
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Event;
 use Native\Desktop\Events\AutoUpdater\UpdateAvailable;
@@ -20,19 +22,19 @@ class NativeAppServiceProvider implements ProvidesPhpIni
     public function boot(): void
     {
         Menu::create(
-            Menu::app(),
             Menu::file(),
             Menu::edit(),
             Menu::view(),
             Menu::window(),
-            Menu::help('Help'),
-            Menu::about('About Обладнання та дані'),
+            Menu::label('Help')->submenu(Menu::about('Про програму')),
         );
         Window::open()->width(1920)->height(1080);
 
         if (app()->environment('production')) {
             Artisan::call('migrate', ['--force' => true, '--no-interaction' => true]);
         }
+
+        config()->set('serial-number.launch_count', app(ApplicationLaunchTracker::class)->registerLaunch());
 
         if (app()->environment('production') && config('nativephp.updater.enabled')) {
             Event::listen(UpdateAvailable::class, static fn (): mixed => AutoUpdater::downloadUpdate());

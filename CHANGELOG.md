@@ -1,5 +1,23 @@
 # Changelog
 
+## v0.9.0 - 2026-08-20
+
+### Added
+
+- Add equipment operations, contract numbers, source-photo links, editing and export support.
+- Add a local application launch counter and first-run setup flow.
+- Add 208 bundled device models plus ten quick-select popular-model buttons.
+- Bundle portable OCR configuration and production-friendly Windows icon handling.
+
+### Changed
+
+- Use Kyiv time consistently for equipment records and show popular models by actual entry count.
+- Improve image-folder configuration, first-run setup and Windows folder dialogs.
+
+### Fixed
+
+- Preserve forward-only SQLite migrations during GitHub updater installs.
+- Correct production OCR runtime discovery and application menu/icon behaviour.
 ## v0.8.3 - 2026-08-20
 
 ### Added

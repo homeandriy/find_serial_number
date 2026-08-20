@@ -32,3 +32,5 @@ Thumbs.db
 !/images/.gitkeep
 
 /extras/
+
+/nativephp/

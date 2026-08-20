@@ -31,14 +31,35 @@ final class ImageRecognitionController extends Controller
         try { $catalog->delete($image); return response()->json(status: 204); } catch (RuntimeException $exception) { return response()->json(['message' => $exception->getMessage()], 422); }
     }
     public function imageDirectory(ImageCatalog $catalog): JsonResponse { return response()->json(['path' => $catalog->configuredDirectory()]); }
-    public function openImageDirectory(ImageCatalog $catalog): JsonResponse { Shell::openFile($catalog->configuredDirectory()); return response()->json(status: 204); }
+    public function openImageDirectory(ImageCatalog $catalog): JsonResponse
+    {
+        $path = realpath($catalog->configuredDirectory());
+
+        if ($path === false || ! is_dir($path)) {
+            return response()->json(['message' => 'Папка зображень не існує або недоступна.'], 422);
+        }
+
+        $error = Shell::openFile($path);
+
+        if ($error !== '') {
+            return response()->json(['message' => "Не вдалося відкрити папку: {$error}"], 422);
+        }
+
+        return response()->json(status: 204);
+    }
     public function updateImageDirectory(Request $request, ImageDirectorySettings $settings): JsonResponse
     {
         try { return response()->json(['path' => $settings->update($request->validate(['path' => ['required', 'string']])['path'])]); } catch (RuntimeException $exception) { return response()->json(['message' => $exception->getMessage()], 422); }
     }
-    public function chooseImageDirectory(): JsonResponse
+    public function chooseImageDirectory(ImageDirectorySettings $settings): JsonResponse
     {
-        $path = Dialog::new()->title('Оберіть папку з зображеннями')->button('Вибрати папку')->folders()->open();
+        $path = Dialog::new()
+            ->title('Оберіть папку з зображеннями')
+            ->button('Вибрати папку')
+            ->defaultPath($settings->path())
+            ->folders()
+            ->asSheet('main')
+            ->open();
         return response()->json(['path' => $path]);
     }
     public function completeSetup(Request $request, ImageDirectorySettings $settings): JsonResponse

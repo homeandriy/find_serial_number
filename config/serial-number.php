@@ -5,4 +5,16 @@ return [
     'tessdata_directory' => env('TESSDATA_DIRECTORY', base_path('tessdata')),
     'tesseract_languages' => env('TESSERACT_LANGUAGES', 'eng'),
     'tesseract_page_segmentation_mode' => (int) env('TESSERACT_PSM', 6),
+    'default_popular_models' => [
+        'Оптичний термінал GPON G-010G-P Nokia',
+        'Оптичний термінал GPON G-010G-Q(R) NOKIA',
+        'Оптичний термінал GPON G-140W-G NOKIA',
+        'Оптичний термінал XPON FD701G-AX Stels',
+        'Маршрутизатор TP-Link EC220-F5',
+        'DCD 3011',
+        'Arris CM820',
+        'Код доступа',
+        'Медіаплеєр iNeXT TV4',
+        'Медіаплеєр iNeXT TV5',
+    ],
 ];

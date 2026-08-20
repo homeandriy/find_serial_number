@@ -1,0 +1,73 @@
+name: Publish Serial Vision Windows release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out release tag
+        uses: actions/checkout@v4
+
+      - name: Set up PHP 8.5
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          extensions: fileinfo, zip, gd
+          tools: composer:v2
+
+      - name: Install PHP dependencies
+        run: composer install --no-dev --prefer-dist --no-interaction --optimize-autoloader
+
+      - name: Prepare production environment file
+        shell: pwsh
+        run: Copy-Item .env.example .env
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Build updater-ready installer
+        shell: pwsh
+        run: ./build-installer.ps1
+
+      - name: Align updater manifest with GitHub asset name
+        shell: pwsh
+        run: |
+          $version = (Get-Content VERSION -Raw).Trim()
+          $manifest = 'nativephp/electron/dist/latest.yml'
+          $sourceName = "Serial Vision Installer version $version.exe"
+          $publishedName = "Serial.Vision.Installer.version.$version.exe"
+          $content = (Get-Content $manifest -Raw).Replace($sourceName, $publishedName)
+          [System.IO.File]::WriteAllText($manifest, $content, [System.Text.UTF8Encoding]::new($false))
+      - name: Prepare release notes
+        shell: pwsh
+        run: |
+          $version = (Get-Content VERSION -Raw).Trim()
+          $changelog = Get-Content CHANGELOG.md -Raw
+          $pattern = '(?ms)^## v' + [regex]::Escape($version) + '[^\r\n]*\r?\n(.*?)(?=^## v|\z)'
+          $match = [regex]::Match($changelog, $pattern)
+          if (-not $match.Success) { throw "Release notes for v$version were not found in CHANGELOG.md." }
+          $notes = "## Обладнання та дані v$version`r`n`r`n" + $match.Groups[1].Value.Trim()
+          [System.IO.File]::WriteAllText('nativephp/electron/dist/RELEASE_NOTES.md', $notes, [System.Text.UTF8Encoding]::new($false))
+      - name: Publish GitHub Release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          body_path: nativephp/electron/dist/RELEASE_NOTES.md
+          files: |
+            nativephp/electron/dist/Serial Vision Installer version *.exe
+            nativephp/electron/dist/Serial Vision Installer version *.exe.blockmap
+            nativephp/electron/dist/latest.yml

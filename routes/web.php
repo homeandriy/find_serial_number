@@ -12,7 +12,7 @@ Route::get('/', function (ImageCatalog $catalog, AiAgentRepository $agents) {
         'imageDirectory' => $catalog->configuredDirectory(),
         'agents' => $agents->all(),
         'appVersion' => trim((string) file_get_contents(base_path('VERSION'))),
-        'setupRequired' => app(\App\Services\ImageDirectorySettings::class)->setupRequired(),
+        'setupRequired' => app()->environment('local') || (int) config('serial-number.launch_count', 1) === 1,
     ]);
 });
 
@@ -36,6 +36,8 @@ Route::get('/devices', [DeviceController::class, 'index']);
 Route::post('/devices', [DeviceController::class, 'store']);
 Route::put('/devices/{device}', [DeviceController::class, 'update']);
 Route::delete('/devices/{device}', [DeviceController::class, 'destroy']);
+Route::post('/devices/{device}/source-image/open', [DeviceController::class, 'openSourceImage']);
+Route::get('/device-models/popular', [DeviceController::class, 'popularModels']);
 Route::get('/device-models', [DeviceController::class, 'models']);
 Route::post('/device-models', [DeviceController::class, 'storeModel']);
 Route::put('/device-models/{deviceModel}', [DeviceController::class, 'updateModel']);
