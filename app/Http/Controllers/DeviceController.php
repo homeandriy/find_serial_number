@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\DeviceOperation;
 use App\Models\Device;
 use App\Models\DeviceModel;
+use App\Services\DeviceStatistics;
 use App\Services\ImageCatalog;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
@@ -22,6 +23,17 @@ final class DeviceController extends Controller
     public function index(Request $request): JsonResponse
     {
         return response()->json($this->listResponse($this->query($request), 'devices', $request));
+    }
+
+    public function statistics(Request $request, DeviceStatistics $statistics): JsonResponse
+    {
+        $filters = $request->validate([
+            'group_by' => ['nullable', 'in:day,month'],
+            'month' => ['nullable', 'date_format:Y-m'],
+        ]);
+        $groupBy = $filters['group_by'] ?? 'day';
+
+        return response()->json($statistics->summarize($groupBy, $groupBy === 'month' ? ($filters['month'] ?? null) : null));
     }
 
     public function models(Request $request): JsonResponse

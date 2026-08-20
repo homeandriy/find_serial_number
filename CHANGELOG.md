@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.11.0 - 2026-08-21
+
+### Added
+
+- Add a lazy-loaded Statistics tab with bar charts for receipts, issues, services and equipment names.
+- Add daily statistics from the first day of the current month and a selectable list of the latest twelve months.
 ## v0.10.0 - 2026-08-20
 
 ### Added

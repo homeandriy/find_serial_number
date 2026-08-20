@@ -638,3 +638,101 @@ document.querySelector('#about-external-homeandriy')?.addEventListener('click', 
 const registerAboutNativeEvent = () => window.Native?.on?.('App\\Events\\ShowAboutDialog', showAboutDialog);
 window.addEventListener('native:init', registerAboutNativeEvent, { once: true });
 registerAboutNativeEvent();
+
+// Statistics are loaded only after the user opens this tab.
+const statisticsTabButton = document.createElement('button');
+statisticsTabButton.className = 'tab-button';
+statisticsTabButton.type = 'button';
+statisticsTabButton.innerHTML = '<span class="tab-icon" aria-hidden="true">▥</span>Статистика';
+const settingsTabButton = document.querySelector('[data-tab="settings"]');
+document.querySelector('.tabs').insertBefore(statisticsTabButton, settingsTabButton);
+
+const statisticsTab = document.createElement('section');
+statisticsTab.className = 'tab-content';
+statisticsTab.id = 'statistics-tab';
+statisticsTab.innerHTML = '<section class="settings-panel statistics-panel"><div class="settings-heading"><div><h2>Статистика</h2><p>Кількість заявок, прийомів і видач за внесеними записами обладнання.</p></div><span id="statistics-total" class="statistics-total">Ще не завантажено</span></div><div class="statistics-switch" role="group" aria-label="Групування статистики"><button type="button" class="tab-button is-active" data-statistics-group="day">По днях</button><button type="button" class="tab-button" data-statistics-group="month">По місяцях</button></div><p id="statistics-period-hint" class="statistics-period-hint">Статистика за поточний місяць — від 1-го числа.</p><label id="statistics-month-control" class="statistics-month-control" hidden>Місяць<select id="statistics-month"></select></label><div id="statistics-content" class="statistics-content"><p class="empty-state">Відкрийте вкладку, щоб побудувати графіки.</p></div></section>';
+document.querySelector('.app-shell').append(statisticsTab);
+
+let statisticsLoaded = false;
+let statisticsGroupBy = 'day';
+const statisticsContent = qs('#statistics-content');
+const statisticsTotal = qs('#statistics-total');
+const statisticsPeriodHint = qs('#statistics-period-hint');
+const statisticsMonthControl = qs('#statistics-month-control');
+const statisticsMonth = qs('#statistics-month');
+const statisticsMonthFormatter = new Intl.DateTimeFormat('uk-UA', { month: 'long', year: 'numeric', timeZone: 'Europe/Kyiv' });
+const statisticsNow = new Date();
+
+for (let offset = 0; offset < 12; offset++) {
+    const month = new Date(Date.UTC(statisticsNow.getFullYear(), statisticsNow.getMonth() - offset, 1));
+    const value = month.toISOString().slice(0, 7);
+    statisticsMonth.insertAdjacentHTML('beforeend', '<option value="' + value + '">' + statisticsMonthFormatter.format(month) + '</option>');
+}
+
+const updateStatisticsPeriodControls = () => {
+    const monthly = statisticsGroupBy === 'month';
+    statisticsPeriodHint.hidden = monthly;
+    statisticsMonthControl.hidden = !monthly;
+};
+
+const statisticsEmpty = text => '<p class="empty-state">' + text + '</p>';
+const statisticsPercent = (value, maximum) => Math.max(4, Math.round((value / Math.max(maximum, 1)) * 100));
+
+const statisticsOperationChart = rows => {
+    if (!rows.length) return statisticsEmpty('Ще немає записів для побудови графіка.');
+
+    const maximum = Math.max(...rows.flatMap(row => [row.receipt, row.issue]), 1);
+
+    return '<div class="statistics-chart-scroll"><div class="statistics-column-chart statistics-operation-chart">' + rows.map(row => '<div class="statistics-column" title="' + escapeHtml(row.label + ': прийом ' + row.receipt + ', видача ' + row.issue) + '"><div class="statistics-bars"><span class="statistics-bar receipt" style="height:' + statisticsPercent(row.receipt, maximum) + '%"></span><span class="statistics-bar issue" style="height:' + statisticsPercent(row.issue, maximum) + '%"></span></div><strong>' + row.total + '</strong><small>' + escapeHtml(row.label) + '</small></div>').join('') + '</div></div>';
+};
+
+const statisticsCountChart = (rows, labelKey) => {
+    if (!rows.length) return statisticsEmpty('Ще немає записів для побудови графіка.');
+
+    const maximum = Math.max(...rows.map(row => row.total), 1);
+
+    return '<div class="statistics-chart-scroll"><div class="statistics-column-chart">' + rows.map(row => '<div class="statistics-column" title="' + escapeHtml(row[labelKey] + ': ' + row.total) + '"><div class="statistics-bars"><span class="statistics-bar total" style="height:' + statisticsPercent(row.total, maximum) + '%"></span></div><strong>' + row.total + '</strong><small>' + escapeHtml(row[labelKey]) + '</small></div>').join('') + '</div></div>';
+};
+
+const renderStatistics = data => {
+    statisticsTotal.textContent = 'Усього заявок: ' + data.total;
+    statisticsContent.innerHTML = '<section class="statistics-card"><div class="statistics-card-heading"><div><h3>Прийом та видача</h3><p>Кількість операцій ' + (data.group_by === 'month' ? 'по місяцях' : 'по днях') + '.</p></div><div class="statistics-legend"><span><i class="receipt"></i>Прийом</span><span><i class="issue"></i>Видача</span></div></div>' + statisticsOperationChart(data.operations) + '</section><section class="statistics-card"><div class="statistics-card-heading"><div><h3>Послуги</h3><p>Інтернет і телебачення.</p></div></div>' + statisticsCountChart(data.services, 'label') + '</section><section class="statistics-card"><div class="statistics-card-heading"><div><h3>Обладнання</h3><p>Кількість заявок за назвою обладнання.</p></div></div>' + statisticsCountChart(data.models, 'name') + '</section>';
+};
+
+const loadStatistics = async () => {
+    statisticsContent.innerHTML = '<p class="empty-state">Завантажуємо статистику…</p>';
+
+    try {
+        const parameters = new URLSearchParams({ group_by: statisticsGroupBy });
+        if (statisticsGroupBy === 'month') parameters.set('month', statisticsMonth.value);
+        const data = await request('/statistics?' + parameters);
+        renderStatistics(data);
+        statisticsLoaded = true;
+    } catch (error) {
+        statisticsContent.innerHTML = statisticsEmpty(error.message);
+    }
+};
+
+statisticsTabButton.addEventListener('click', () => {
+    document.querySelectorAll('.tabs > .tab-button').forEach(button => button.classList.toggle('is-active', button === statisticsTabButton));
+    document.querySelectorAll('.tab-content').forEach(tab => tab.classList.toggle('is-active', tab === statisticsTab));
+    statisticsTab.querySelectorAll('[data-statistics-group]').forEach(button => button.classList.toggle('is-active', button.dataset.statisticsGroup === statisticsGroupBy));
+    updateStatisticsPeriodControls();
+
+    if (!statisticsLoaded) loadStatistics();
+});
+
+statisticsTab.querySelectorAll('[data-statistics-group]').forEach(button => {
+    button.addEventListener('click', () => {
+        const nextGroupBy = button.dataset.statisticsGroup;
+        if (nextGroupBy === statisticsGroupBy && statisticsLoaded) return;
+
+        statisticsGroupBy = nextGroupBy;
+        statisticsTab.querySelectorAll('[data-statistics-group]').forEach(item => item.classList.toggle('is-active', item === button));
+        updateStatisticsPeriodControls();
+        loadStatistics();
+    });
+});
+statisticsMonth.addEventListener('change', () => {
+    if (statisticsGroupBy === 'month') loadStatistics();
+});
