@@ -13,7 +13,7 @@ return [
      * usually in the form of a reverse domain name.
      * For example: com.nativephp.app
      */
-    'app_id' => env('NATIVEPHP_APP_ID', 'ua.webbooks.serialvision'),
+    'app_id' => env('NATIVEPHP_APP_ID', 'ua.homeandriy.serialvision'),
 
     /**
      * If your application allows deep linking, you can specify the scheme
@@ -105,13 +105,13 @@ return [
          * Supported: "github", "s3", "spaces"
          * Note: The "s3" provider is compatible with S3-compatible services like Cloudflare R2.
          */
-        'default' => env('NATIVEPHP_UPDATER_PROVIDER', 'spaces'),
+        'default' => env('NATIVEPHP_UPDATER_PROVIDER', 'github'),
 
         'providers' => [
             'github' => [
                 'driver' => 'github',
-                'repo' => env('GITHUB_REPO'),
-                'owner' => env('GITHUB_OWNER'),
+                'repo' => env('GITHUB_REPO', 'find_serial_number'),
+                'owner' => env('GITHUB_OWNER', 'homeandriy'),
                 'token' => env('GITHUB_TOKEN'),
                 'vPrefixedTagName' => env('GITHUB_V_PREFIXED_TAG_NAME', true),
                 'private' => env('GITHUB_PRIVATE', false),

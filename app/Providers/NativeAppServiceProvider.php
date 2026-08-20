@@ -2,6 +2,11 @@
 
 namespace App\Providers;
 
+use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Event;
+use Native\Desktop\Events\AutoUpdater\UpdateAvailable;
+use Native\Desktop\Events\AutoUpdater\UpdateDownloaded;
+use Native\Desktop\Facades\AutoUpdater;
 use Native\Desktop\Facades\Menu;
 use Native\Desktop\Facades\Window;
 use Native\Desktop\Contracts\ProvidesPhpIni;
@@ -24,6 +29,16 @@ class NativeAppServiceProvider implements ProvidesPhpIni
             Menu::about('About Обладнання та дані'),
         );
         Window::open()->width(1920)->height(1080);
+
+        if (app()->environment('production')) {
+            Artisan::call('migrate', ['--force' => true, '--no-interaction' => true]);
+        }
+
+        if (app()->environment('production') && config('nativephp.updater.enabled')) {
+            Event::listen(UpdateAvailable::class, static fn (): mixed => AutoUpdater::downloadUpdate());
+            Event::listen(UpdateDownloaded::class, static fn (): mixed => AutoUpdater::quitAndInstall());
+            AutoUpdater::checkForUpdates();
+        }
     }
 
     /**

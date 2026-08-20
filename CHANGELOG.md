@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.8.2 - 2026-08-20
+
+### Added
+
+- Check public GitHub Releases at production startup, download updates, install them and relaunch the application.
+- Run forward-only Laravel migrations on production startup without resetting local SQLite data.
+
+### Changed
+
+- Use the stable NativePHP application identifier ua.homeandriy.serialvision.
 ## v0.8.1 - 2026-08-20
 
 ### Changed
