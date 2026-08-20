@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.8.3 - 2026-08-20
+
+### Added
+
+- Publish the first GitHub updater-compatible production release with installer metadata and block map.
 ## v0.8.2 - 2026-08-20
 
 ### Added
