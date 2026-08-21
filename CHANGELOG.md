@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.13.0 - 2026-08-21
+
+### Added
+
+- Add Ukrainian, English and Polish interface languages, selected during first run or later in Settings.
+- Localize the first-run flow, native Help menu, update and confirmation dialogs, statistics months, and Windows window/taskbar title.
+- Add localized installer license texts for English, Ukrainian and Polish.
+
+### Changed
+
+- Refactor the main Blade view into readable partials and standalone JavaScript modules.
+
+### Fixed
+
+- Keep dynamic interface text, API-token hints, OCR states and confirmation dialogs in the selected language.
+- Store the selected locale safely in the local application database, including upgrades from earlier versions.
+
 ## v0.12.8 - 2026-08-21
 
 ### Changed

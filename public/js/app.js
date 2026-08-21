@@ -1,3 +1,5 @@
+const t = (key, replacements = {}) =>
+    window.translate?.(key, replacements) ?? key;
 const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
 const status = document.querySelector("#status"),
     selectedImage = document.querySelector("#selected-image"),
@@ -41,6 +43,103 @@ const escapeHtml = (value) =>
                 "'": "&#039;",
             })[char],
     );
+const confirmationDialog = document.querySelector("#confirmation-dialog");
+const confirmationMessage = document.querySelector(
+    "#confirmation-dialog-message",
+);
+const confirmationAccept = document.querySelector("#confirmation-accept");
+const confirmationCancel = document.querySelector("#confirmation-cancel");
+let confirmationResolver = null;
+
+const closeConfirmation = (accepted) => {
+    confirmationDialog?.close();
+    confirmationResolver?.(accepted);
+    confirmationResolver = null;
+};
+
+const confirmAction = (message) =>
+    new Promise((resolve) => {
+        if (!confirmationDialog) {
+            resolve(false);
+            return;
+        }
+
+        confirmationResolver = resolve;
+        confirmationMessage.textContent = message;
+        confirmationDialog.showModal();
+    });
+
+confirmationAccept?.addEventListener("click", () => closeConfirmation(true));
+confirmationCancel?.addEventListener("click", () => closeConfirmation(false));
+confirmationDialog?.addEventListener("cancel", (event) => {
+    event.preventDefault();
+    closeConfirmation(false);
+});
+const tableActionSelector =
+    "button[data-edit-device], button[data-delete-device], button[data-edit-model], button[data-delete-model], button[data-edit-agent], button[data-delete-agent]";
+const tableActionIcons = {
+    edit: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 16 9.5-9.5 4 4L8 20H4v-4Z"></path><path d="m12.5 7.5 2-2a2.8 2.8 0 0 1 4 4l-2 2"></path></svg>',
+    delete: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6m4-6v6M6 7l1 13h10l1-13M9 7l1-3h4l1 3"></path></svg>',
+};
+const enhanceTableActions = (root = document) => {
+    const buttons = [
+        ...(root.matches?.(tableActionSelector) ? [root] : []),
+        ...root.querySelectorAll?.(tableActionSelector),
+    ];
+
+    buttons.forEach((button) => {
+        if (button.dataset.tableActionEnhanced) return;
+
+        const isDelete = button.matches(
+            "[data-delete-device], [data-delete-model], [data-delete-agent]",
+        );
+        const label = button.textContent.trim();
+
+        button.dataset.tableActionEnhanced = "true";
+        button.classList.add(
+            "table-action",
+            isDelete ? "table-action-danger" : "table-action-edit",
+        );
+        button.setAttribute("title", label);
+        button.setAttribute("aria-label", label);
+        button.innerHTML =
+            tableActionIcons[isDelete ? "delete" : "edit"] +
+            "<span>" +
+            escapeHtml(label) +
+            "</span>";
+
+        const cell = button.parentElement;
+        if (
+            !cell ||
+            cell.tagName !== "TD" ||
+            cell.querySelector(".table-actions")
+        ) {
+            return;
+        }
+
+        const actions = [...cell.children].filter((item) =>
+            item.matches(tableActionSelector),
+        );
+        if (!actions.length) return;
+
+        const group = document.createElement("div");
+        group.className = "table-actions";
+        cell.insertBefore(group, actions[0]);
+        actions.forEach((action) => group.append(action));
+    });
+};
+document.addEventListener("DOMContentLoaded", () => {
+    enhanceTableActions();
+    new MutationObserver((records) => {
+        records.forEach((record) => {
+            record.addedNodes.forEach((node) => {
+                if (node.nodeType === Node.ELEMENT_NODE) {
+                    enhanceTableActions(node);
+                }
+            });
+        });
+    }).observe(document.body, { childList: true, subtree: true });
+});
 function renderAgentSelect() {
     const value = agentSelect.value;
     agentSelect.innerHTML = agents.length
@@ -68,15 +167,15 @@ function updateAiState() {
     aiResult.disabled = !ready;
     if (!ready)
         aiResult.value = agents.length
-            ? "Виберіть зображення й AI-агента."
-            : "Додайте AI-агента у налаштуваннях.";
+            ? t("text.choose.an.image.and.an.ai.agent")
+            : t("text.add.an.ai.agent.in.settings");
 }
 function agentForm(agent = {}) {
     return (
         '<form class="agent-form" data-agent-id="' +
         (agent.id || "") +
         '"><div class="agent-form-heading"><strong>' +
-        escapeHtml(agent.name || "Новий AI-агент") +
+        escapeHtml(agent.name || t("new_ai_agent")) +
         '</strong><button class="delete-agent" type="button" ' +
         (agent.id ? "" : "hidden") +
         '>Видалити</button></div><label>Назва (необов’язково)<input name="name" value="' +
@@ -97,7 +196,7 @@ function agentForm(agent = {}) {
         '</select></label><label>Модель<input name="model" value="' +
         escapeHtml(agent.model || "") +
         '" placeholder="Наприклад, gpt-4.1-mini" required></label><label>API-токен<input name="token" type="password" autocomplete="off" placeholder="' +
-        (agent.id ? "Залиште порожнім, щоб не змінювати" : "Введіть токен") +
+        (agent.id ? t("leave_token_empty") : t("enter_api_token")) +
         '" ' +
         (agent.id ? "" : "required") +
         '></label><button class="primary-button" type="submit">Зберегти</button><p class="agent-message"></p></form>'
@@ -135,7 +234,8 @@ function bindForms() {
         form.querySelector(".delete-agent")?.addEventListener(
             "click",
             async () => {
-                if (!confirm("Видалити цього AI-агента?")) return;
+                if (!(await confirmAction(t("confirm_delete_ai_agent"))))
+                    return;
                 try {
                     await request(
                         "/ai-agents/" + form.dataset.agentId,
@@ -263,6 +363,7 @@ document.addEventListener("click", () => {
 });
 const deviceTabButton = document.createElement("button");
 deviceTabButton.className = "tab-button";
+deviceTabButton.dataset.tab = "equipment";
 deviceTabButton.textContent = "Обладнання";
 document.querySelector(".tabs").append(deviceTabButton);
 const devicesTab = document.createElement("section");
@@ -333,6 +434,7 @@ addDeviceButton.addEventListener("click", () => {
 });
 const modelTabButton = document.createElement("button");
 modelTabButton.className = "tab-button";
+modelTabButton.dataset.tab = "models";
 modelTabButton.textContent = "Моделі";
 document.querySelector(".tabs").append(modelTabButton);
 const modelsTab = document.createElement("section");
@@ -400,7 +502,7 @@ async function showModels() {
     d.models.forEach((m) => {
         qs('[data-edit-model="' + m.id + '"]').onclick = () => openModel(m);
         qs('[data-delete-model="' + m.id + '"]').onclick = async () => {
-            if (confirm("Видалити модель?")) {
+            if (await confirmAction(t("confirm_delete_model"))) {
                 await request("/device-models/" + m.id, "DELETE");
                 showModels();
             }
@@ -471,7 +573,7 @@ async function showDevices() {
     d.devices.forEach((x) => {
         qs('[data-edit-device="' + x.id + '"]').onclick = () => editDevice(x);
         qs('[data-delete-device="' + x.id + '"]').onclick = async () => {
-            if (confirm("Видалити запис обладнання?")) {
+            if (await confirmAction(t("confirm_delete_equipment_record"))) {
                 await request("/devices/" + x.id, "DELETE");
                 showDevices();
             }
@@ -740,7 +842,7 @@ showDevices = async () => {
         qs('[data-edit-device="' + device.id + '"]').onclick = () =>
             editDevice(device);
         qs('[data-delete-device="' + device.id + '"]').onclick = async () => {
-            if (confirm("Видалити запис обладнання?")) {
+            if (await confirmAction(t("confirm_delete_equipment_record"))) {
                 await request("/devices/" + device.id, "DELETE");
                 showDevices();
             }
@@ -943,7 +1045,7 @@ imageActionMenu.addEventListener("click", async (event) => {
         return;
     }
 
-    if (!confirm("Видалити це фото без можливості відновлення?")) {
+    if (!(await confirmAction(t("confirm_delete_photo")))) {
         return;
     }
 
@@ -978,7 +1080,9 @@ document
 // AI agents: one table and one CRUD dialog instead of unlimited forms.
 const settingsTabCrud = document.querySelector("#settings-tab");
 settingsTabCrud.innerHTML =
-    '<section class="settings-panel"><div class="settings-heading"><div><h2>AI-агенти</h2><p>API-токен шифрується локально й не показується після збереження.</p></div><button id="new-agent" class="primary-button" type="button">Додати агента</button></div><div id="agents-table"></div></section>';
+    '<section class="settings-panel"><div class="settings-heading"><div><h2>AI-агенти</h2><p>' +
+    t("api_token_encrypted") +
+    '</p></div><button id="new-agent" class="primary-button" type="button">Додати агента</button></div><div id="agents-table"></div></section>';
 const agentCrudDialog = document.createElement("dialog");
 agentCrudDialog.innerHTML =
     '<form id="agent-crud" class="agent-form"><h2>AI-агент</h2><input type="hidden" name="id"><label>Назва<input name="name"></label><label>Постачальник<select name="provider"><option value="openai">OpenAI</option><option value="anthropic">Anthropic (Claude)</option><option value="gemini">Google Gemini</option></select></label><label>Модель<input name="model" required></label><label>API-токен<input name="token" type="password" autocomplete="off"></label><button class="primary-button">Зберегти</button><button type="button" class="close-agent-dialog">Скасувати</button><p class="agent-message"></p></form>';
@@ -994,7 +1098,7 @@ const openAgentCrud = (agent) => {
     form.token.required = !agent;
     form.token.placeholder = agent
         ? "Залиште порожнім, щоб не змінювати"
-        : "Введіть токен";
+        : t("enter_api_token");
     agentCrudDialog.showModal();
 };
 const renderAgentTable = () => {
@@ -1021,7 +1125,7 @@ const renderAgentTable = () => {
         qs('[data-edit-agent="' + agent.id + '"]').onclick = () =>
             openAgentCrud(agent);
         qs('[data-delete-agent="' + agent.id + '"]').onclick = async () => {
-            if (confirm("Видалити AI-агента?")) {
+            if (await confirmAction(t("confirm_delete_ai_agent"))) {
                 await request("/ai-agents/" + agent.id, "DELETE");
                 agents = agents.filter((item) => item.id !== agent.id);
                 renderAgentTable();
@@ -1215,6 +1319,44 @@ window.addEventListener(
     true,
 );
 
+// Interface language setting.
+const localeSettings = document.createElement("section");
+localeSettings.className = "settings-panel";
+localeSettings.innerHTML =
+    "<h2>" +
+    t("language") +
+    '</h2><form id="locale-form" class="agent-form"><label>' +
+    t("language") +
+    '<select name="locale"><option value="uk">' +
+    t("ukrainian") +
+    '</option><option value="en">' +
+    t("english") +
+    '</option><option value="pl">' +
+    t("polish") +
+    '</option></select></label><button class="primary-button">' +
+    t("apply") +
+    '</button><p class="agent-message"></p></form></section>';
+settingsTabCrud.prepend(localeSettings);
+const localeForm = qs("#locale-form");
+localeForm.locale.value = window.initialLocale || "uk";
+localeForm.onsubmit = async (event) => {
+    event.preventDefault();
+    const message = localeForm.querySelector(".agent-message");
+    const submit = localeForm.querySelector("button");
+    submit.disabled = true;
+    try {
+        await request(
+            "/locale",
+            "PUT",
+            Object.fromEntries(new FormData(localeForm)),
+        );
+        window.location.reload();
+    } catch (error) {
+        message.textContent = error.message;
+        submit.disabled = false;
+    }
+};
+
 // Image folder setting.
 const folderSettings = document.createElement("section");
 folderSettings.className = "settings-panel";
@@ -1310,7 +1452,7 @@ showDevices = async () => {
     data.devices.forEach((d) => {
         qs('[data-edit-device="' + d.id + '"]').onclick = () => editDevice(d);
         qs('[data-delete-device="' + d.id + '"]').onclick = async () => {
-            if (confirm("Видалити запис обладнання?")) {
+            if (await confirmAction(t("confirm_delete_equipment_record"))) {
                 await request("/devices/" + d.id, "DELETE");
                 showDevices();
             }
@@ -1377,7 +1519,7 @@ showModels = async () => {
     data.models.forEach((m) => {
         qs('[data-edit-model="' + m.id + '"]').onclick = () => openModel(m);
         qs('[data-delete-model="' + m.id + '"]').onclick = async () => {
-            if (confirm("Видалити модель?")) {
+            if (await confirmAction(t("confirm_delete_model"))) {
                 await request("/device-models/" + m.id, "DELETE");
                 showModels();
                 loadModels();
@@ -1519,7 +1661,7 @@ showDevices = async () => {
         qs('[data-edit-device="' + device.id + '"]').onclick = () =>
             editDevice(device);
         qs('[data-delete-device="' + device.id + '"]').onclick = async () => {
-            if (confirm("Видалити запис обладнання?")) {
+            if (await confirmAction(t("confirm_delete_equipment_record"))) {
                 await request("/devices/" + device.id, "DELETE");
                 showDevices();
             }
@@ -1546,17 +1688,26 @@ unifiedOcrMenu.addEventListener("click", (event) => {
 });
 // Keep the currently open section visible in the lower application status line.
 const activeTabName = qs("#active-tab-name");
-const updateActiveTabTitle = (tabName) => {
-    activeTabName.textContent = tabName;
-    document.title = tabName + " — Обладнання та дані";
-    void request("/window-title", "POST", { tab: tabName }).catch(() => {});
+const updateActiveTabTitle = (tabName, tabKey) => {
+    const translatedTabName = tabKey ? t(tabKey) : tabName;
+
+    activeTabName.textContent = translatedTabName;
+    document.title = translatedTabName + " — " + t("app_name");
+
+    if (tabKey) {
+        void request("/window-title", "POST", { tab: tabKey }).catch(() => {});
+    }
 };
-updateActiveTabTitle(activeTabName.textContent.trim());
+const initialTabButton = document.querySelector(".tabs .tab-button.is-active");
+updateActiveTabTitle(
+    activeTabName.textContent.trim(),
+    initialTabButton?.dataset.tab,
+);
 document.querySelector(".tabs")?.addEventListener("click", (event) => {
     const button = event.target.closest(".tab-button");
     if (!button || !button.parentElement?.classList.contains("tabs")) return;
 
-    updateActiveTabTitle(button.textContent.trim());
+    updateActiveTabTitle(button.textContent.trim(), button.dataset.tab);
 });
 // Ten most-used models speed up repeated equipment entry.
 const popularModelsContainer = document.createElement("div");
@@ -1738,6 +1889,7 @@ registerUpdateNativeEvents();
 const statisticsTabButton = document.createElement("button");
 statisticsTabButton.className = "tab-button";
 statisticsTabButton.type = "button";
+statisticsTabButton.dataset.tab = "statistics";
 statisticsTabButton.innerHTML =
     '<span class="tab-icon" aria-hidden="true">▥</span>Статистика';
 const settingsTabButton = document.querySelector('[data-tab="settings"]');
@@ -1759,11 +1911,15 @@ const statisticsTotal = qs("#statistics-total");
 const statisticsPeriodHint = qs("#statistics-period-hint");
 const statisticsMonthControl = qs("#statistics-month-control");
 const statisticsMonth = qs("#statistics-month");
-const statisticsMonthFormatter = new Intl.DateTimeFormat("uk-UA", {
-    month: "long",
-    year: "numeric",
-    timeZone: "Europe/Kyiv",
-});
+const statisticsMonthFormatter = new Intl.DateTimeFormat(
+    { uk: "uk-UA", en: "en-GB", pl: "pl-PL" }[document.documentElement.lang] ||
+        "uk-UA",
+    {
+        month: "long",
+        year: "numeric",
+        timeZone: "Europe/Kyiv",
+    },
+);
 const statisticsNow = new Date();
 
 for (let offset = 0; offset < 12; offset++) {

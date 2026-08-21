@@ -7,7 +7,9 @@ use App\Http\Requests\UpdateAiAgentRequest;
 use App\Services\AiAgentRepository;
 use App\Services\AiVisionRecognizer;
 use App\Services\ImageCatalog;
+use App\Services\ApplicationLocale;
 use App\Services\ImageDirectorySettings;
+use App\Services\NativeMenu;
 use App\Services\TesseractRecognizer;
 use App\Services\StartupLog;
 use Illuminate\Http\JsonResponse;
@@ -20,6 +22,24 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 final class ImageRecognitionController extends Controller
 {
+    public function locale(ApplicationLocale $locale): JsonResponse
+    {
+        return response()->json(['locale' => $locale->current(), 'supported' => $locale->supported()]);
+    }
+
+    public function updateLocale(
+        Request $request,
+        ApplicationLocale $locale,
+        NativeMenu $menu,
+    ): JsonResponse {
+        $selected = $request->validate(['locale' => ['required', 'string', 'in:uk,en,pl']])['locale'];
+        $updatedLocale = $locale->update($selected);
+
+        $menu->register();
+
+        return response()->json(['locale' => $updatedLocale]);
+    }
+
     public function catalog(Request $request, ImageCatalog $catalog): JsonResponse
     {
         $data = $request->validate([
@@ -118,13 +138,16 @@ final class ImageRecognitionController extends Controller
         }
     }
     public function openWebsite(): JsonResponse { Shell::openExternal('https://webbooks.com.ua'); return response()->json(status: 204); }
-    public function updateWindowTitle(Request $request): JsonResponse
-    {
+    public function updateWindowTitle(
+        Request $request,
+        ApplicationLocale $locale,
+    ): JsonResponse {
         $tab = $request->validate([
-            'tab' => ['required', 'string', 'in:Розпізнавання,Обладнання,Моделі,Статистика,Налаштування'],
-        ])['tab'];
+            "tab" => ["required", "string", "in:recognition,equipment,models,statistics,settings"],
+        ])["tab"];
 
-        Window::get('main')->title($tab . ' — Обладнання та дані');
+        app()->setLocale($locale->current());
+        Window::get("main")->title(__("ui.".$tab)." — ".__("ui.app_name"));
 
         return response()->json(status: 204);
     }

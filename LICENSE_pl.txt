@@ -1,0 +1,17 @@
+UMOWA LICENCYJNA
+
+Przed instalacją Serial Vision należy przeczytać tę umowę.
+
+1. Przeznaczenie
+Serial Vision służy do lokalnej pracy ze sprzętem, obrazami, numerami seryjnymi i wynikami rozpoznawania.
+
+2. Odpowiedzialność użytkownika
+Użytkownik samodzielnie odpowiada za zgodność przetwarzania danych z prawem, prawa do przesłanych obrazów, bezpieczne przechowywanie tokenów API oraz kopie zapasowe.
+
+3. Udostępnienie aplikacji
+Aplikacja jest udostępniana w stanie „tak jak jest”. Twórca nie gwarantuje bezbłędnego rozpoznawania i nie odpowiada za utratę danych.
+
+4. Tekst tymczasowy
+To tymczasowa wersja umowy licencyjnej. Pełny tekst prawny zostanie dodany w kolejnych wersjach.
+
+Klikając „Zgadzam się”, potwierdzasz, że przeczytałeś(-aś) i akceptujesz warunki tej umowy.

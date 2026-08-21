@@ -1,0 +1,17 @@
+LICENSE AGREEMENT
+
+Please read this agreement before installing Serial Vision.
+
+1. Purpose
+Serial Vision is intended for local work with equipment, images, serial numbers and recognition results.
+
+2. User responsibility
+The user is solely responsible for lawful data processing, rights to uploaded images, secure storage of API tokens and backups.
+
+3. Provision of the application
+The application is provided “as is”. The developer does not guarantee error-free recognition and is not responsible for data loss.
+
+4. Temporary text
+This is a temporary license agreement placeholder. Full legal text will be added in future versions.
+
+By clicking “Agree”, you confirm that you have read and accept the terms of this agreement.

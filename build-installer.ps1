@@ -23,7 +23,7 @@ if (-not (Test-Path -LiteralPath (Join-Path $tessdataSource 'eng.traineddata')))
 New-Item -ItemType Directory -Force -Path $tessdataTarget | Out-Null
 Copy-Item -Path (Join-Path $tessdataSource '*') -Destination $tessdataTarget -Recurse -Force
 & (Join-Path $projectDirectory 'prepare-nativephp-electron.ps1') -ProjectDirectory $projectDirectory
-$licenseSource = Join-Path $projectDirectory 'LICENSE.txt'
+$licenseSource = Join-Path $projectDirectory 'LICENSE_en.txt'
 $nsisLicense = Join-Path $projectDirectory 'LICENSE.nsis.txt'
 
 if (-not (Test-Path -LiteralPath $licenseSource)) {
@@ -34,6 +34,12 @@ $licenseText = [IO.File]::ReadAllText($licenseSource, [Text.UTF8Encoding]::new($
 # NSIS Unicode installers expect the license file in UTF-8. A BOM makes the
 # encoding explicit for the installer UI and prevents Cyrillic mojibake.
 [IO.File]::WriteAllText($nsisLicense, $licenseText, [Text.UTF8Encoding]::new($true))
+$localizedLicenses = @{ '_en' = 'LICENSE_en.txt'; '_uk' = 'LICENSE.txt'; '_pl' = 'LICENSE_pl.txt' }
+foreach ($suffix in $localizedLicenses.Keys) {
+    $source = Join-Path $projectDirectory $localizedLicenses[$suffix]
+    if (-not (Test-Path -LiteralPath $source)) { throw "Localized license source was not found: $source" }
+    [IO.File]::WriteAllText((Join-Path $projectDirectory ("LICENSE.nsis$suffix.txt")), [IO.File]::ReadAllText($source, [Text.UTF8Encoding]::new($false)), [Text.UTF8Encoding]::new($true))
+}
 $builderContent = [IO.File]::ReadAllText($builder)
 $builderContent = $builderContent.Replace("license: join(process.env.APP_PATH, 'LICENSE.txt'),", "license: join(process.env.APP_PATH, 'LICENSE.nsis.txt'),")
 $versionToken = '$' + '{version}'
@@ -49,7 +55,7 @@ if (-not $builderContent.Contains("icon: join(process.env.APP_PATH, 'public', 'i
     $builderContent = $builderContent.Replace('    win: {', "    win: {" + [Environment]::NewLine + "        icon: join(process.env.APP_PATH, 'public', 'icon.ico'),")
 }
 if (-not $builderContent.Contains('Serial Vision Installer version')) {
-    $nsisConfig = '    nsis: {' + [Environment]::NewLine + '        oneClick: false,' + [Environment]::NewLine + '        allowToChangeInstallationDirectory: true,' + [Environment]::NewLine + '        runAfterFinish: true,' + [Environment]::NewLine + "        license: join(process.env.APP_PATH, 'LICENSE.nsis.txt'),"
+    $nsisConfig = '    nsis: {' + [Environment]::NewLine + '        oneClick: false,' + [Environment]::NewLine + '        allowToChangeInstallationDirectory: true,' + [Environment]::NewLine + '        runAfterFinish: true,' + [Environment]::NewLine + '        installerLanguages: ["en_US", "uk_UA", "pl_PL"],' + [Environment]::NewLine + '        language: "1033",' + [Environment]::NewLine + "        license: join(process.env.APP_PATH, 'LICENSE.nsis.txt'),"
     $builderContent = $builderContent.Replace('    nsis: {', $nsisConfig)
     $oldArtifact = "artifactName: appName + '-$versionToken-setup.$extensionToken',"
     $newArtifact = "artifactName: 'Serial Vision Installer version $versionToken.$extensionToken',"

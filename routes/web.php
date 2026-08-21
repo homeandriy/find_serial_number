@@ -4,10 +4,12 @@ use App\Http\Controllers\DeviceController;
 use App\Http\Controllers\ImageRecognitionController;
 use App\Services\AiAgentRepository;
 use App\Services\ImageCatalog;
+use App\Services\ApplicationLocale;
 use App\Services\StartupLog;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function (ImageCatalog $catalog, AiAgentRepository $agents, StartupLog $startupLog, \App\Services\ImageDirectorySettings $settings) {
+Route::get('/', function (ImageCatalog $catalog, AiAgentRepository $agents, StartupLog $startupLog, \App\Services\ImageDirectorySettings $settings, ApplicationLocale $locale) {
+    app()->setLocale($locale->current());
     $startupLog->mark('Головна сторінка готується без синхронного сканування фото');
 
     return view('serial-number.index', [
@@ -15,8 +17,14 @@ Route::get('/', function (ImageCatalog $catalog, AiAgentRepository $agents, Star
         'agents' => $agents->all(),
         'appVersion' => trim((string) file_get_contents(base_path('VERSION'))),
         'setupRequired' => $settings->setupRequired(),
+        'locale' => $locale->current(),
+        'supportedLocales' => $locale->supported(),
+        'translations' => trans('ui'),
     ]);
 });
+
+Route::get('/locale', [ImageRecognitionController::class, 'locale']);
+Route::put('/locale', [ImageRecognitionController::class, 'updateLocale']);
 
 Route::get('/image-catalog', [ImageRecognitionController::class, 'catalog']);
 Route::post('/startup/renderer-ready', [ImageRecognitionController::class, 'markRendererReady']);

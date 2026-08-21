@@ -6,6 +6,8 @@ use App\Events\CheckForUpdates;
 use App\Events\OpenStartupLog;
 use App\Events\ShowAboutDialog;
 use App\Services\ApplicationLaunchTracker;
+use App\Services\ApplicationLocale;
+use App\Services\NativeMenu;
 use App\Services\StartupLog;
 use Illuminate\Support\Facades\Event;
 use Native\Desktop\Contracts\ProvidesPhpIni;
@@ -15,7 +17,6 @@ use Native\Desktop\Events\AutoUpdater\UpdateAvailable;
 use Native\Desktop\Events\AutoUpdater\UpdateDownloaded;
 use Native\Desktop\Events\AutoUpdater\UpdateNotAvailable;
 use Native\Desktop\Facades\AutoUpdater;
-use Native\Desktop\Facades\Menu;
 use Native\Desktop\Facades\Window;
 
 class NativeAppServiceProvider implements ProvidesPhpIni
@@ -29,17 +30,8 @@ class NativeAppServiceProvider implements ProvidesPhpIni
         $startupLog = app(StartupLog::class);
         $startupLog->start();
         $startupLog->mark('Нативне меню та головне вікно ініціалізуються');
-        Menu::create(
-            Menu::file(),
-            Menu::edit(),
-            Menu::view(),
-            Menu::window(),
-            Menu::make(
-                Menu::label('Відкрити лог запуску')->event(OpenStartupLog::class),
-                Menu::label('Перевірити оновлення')->event(CheckForUpdates::class),
-                Menu::label('Про програму')->event(ShowAboutDialog::class),
-            )->label('Help'),
-        );
+        app()->setLocale(app(ApplicationLocale::class)->current());
+        app(NativeMenu::class)->register();
 
         $startupLog->mark('Розширений лог запуску: меню готове; відкривається головне вікно');
         Window::open()->width(1920)->height(1080);
