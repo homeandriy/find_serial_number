@@ -29,7 +29,10 @@ jobs:
 
       - name: Prepare production environment file
         shell: pwsh
-        run: Copy-Item .env.example .env
+        run: |
+          Copy-Item .env.example .env
+          php artisan key:generate --force --no-interaction
+          php artisan optimize --no-interaction
 
       - name: Set up Node.js
         uses: actions/setup-node@v4

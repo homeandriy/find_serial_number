@@ -26,6 +26,18 @@ if (-not (Test-Path -LiteralPath $mainEntrypoint)) {
 }
 
 $mainSource = [IO.File]::ReadAllText($mainEntrypoint)
+$userDataMarker = '// Serial Vision stable user data path'
+
+if (-not $mainSource.Contains($userDataMarker)) {
+    $userDataSnippet = @"
+
+// Serial Vision stable user data path
+app.setPath('userData', path.join(app.getPath('appData'), 'obladnannia-ta-dani'));
+"@
+    $mainSource = $mainSource.Replace("import path from 'path';", "import path from 'path';" + $userDataSnippet)
+    [IO.File]::WriteAllText($mainEntrypoint, $mainSource, [Text.UTF8Encoding]::new($false))
+}
+
 $splashMarker = '// Serial Vision startup splash'
 
 if (-not $mainSource.Contains($splashMarker)) {
@@ -89,20 +101,20 @@ if (-not (Test-Path -LiteralPath $phpRuntime)) {
 }
 
 $phpRuntimeSource = [IO.File]::ReadAllText($phpRuntime)
-$startupMarker = '// Serial Vision optimized startup'
+$startupMarker = '// Serial Vision safe startup v2'
 
 if (-not $phpRuntimeSource.Contains($startupMarker)) {
     $phpRuntimeSource = $phpRuntimeSource.Replace("import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'fs';", "import { appendFileSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'fs';")
-    $phpRuntimeSource = [regex]::Replace($phpRuntimeSource, 'function shouldOptimize\(\) \{\s*return process\.env\.NODE_ENV !== ''development'';\s*\}', "function shouldOptimize(store) {`n    return store.get('optimized_version') !== app.getVersion() && process.env.NODE_ENV !== 'development';`n}")
+    $phpRuntimeSource = [regex]::Replace($phpRuntimeSource, 'function shouldOptimize\([^)]*\) \{\s*[^}]*\}', "function shouldOptimize() {`n    return false;`n}")
     $phpRuntimeSource = $phpRuntimeSource.Replace('if (shouldOptimize()) {', 'if (shouldOptimize(store)) {')
 
-    if (-not $phpRuntimeSource.Contains('function shouldOptimize(store)')) {
+    if (-not $phpRuntimeSource.Contains('function shouldOptimize()')) {
         throw 'Unexpected NativePHP optimize template.'
     }
 
     $runtimeSnippet = @(
         "mkdirpSync(join(storagePath, 'framework', 'testing'));"
-        '// Serial Vision optimized startup'
+        $startupMarker
         "const startupLogPath = join(storagePath, 'logs', 'startup.log');"
         'const logStartup = (message) => appendFileSync(startupLogPath, `[${new Date().toISOString()}] [electron] ${message}\n`);'
         "logStartup('Electron runtime initialized');"

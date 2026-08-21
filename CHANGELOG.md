@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.12.1 - 2026-08-21
+
+### Fixed
+
+- Use the Serial Vision name throughout the Windows installer, desktop shortcut and application window.
+- Generate the production Laravel application key during CI packaging and prevent runtime cache writes to Program Files.
+- Display the Ukrainian NSIS license agreement using UTF-8 encoding.
+- Preserve the existing local application-data folder during updates.
+
 ## v0.12.0 - 2026-08-21
 
 ### Added
