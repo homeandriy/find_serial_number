@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.12.8 - 2026-08-21
+
+### Changed
+
+- Load the production NativePHP configuration prepared during packaging, making the startup splash appear immediately while the local server starts.
+- Record detailed Electron updater diagnostics in the startup log, including the GitHub request, response, timeout and error.
+
+### Fixed
+
+- Include the GitHub updater configuration in the Windows package so production builds check homeandriy/find_serial_number correctly.
+- Prevent the splash window from raising a JavaScript error after it has already been closed.
+- Restore first-run setup controls: accepting the agreement, choosing an images folder and postponing setup.
+
 ## v0.12.7 - 2026-08-21
 
 ### Fixed

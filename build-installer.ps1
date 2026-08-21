@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 $projectDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
 $localPhp = 'F:\Tools\php-8_5\php.exe'
 $php = if (Test-Path -LiteralPath $localPhp) {
@@ -38,6 +38,12 @@ $builderContent = [IO.File]::ReadAllText($builder)
 $builderContent = $builderContent.Replace("license: join(process.env.APP_PATH, 'LICENSE.txt'),", "license: join(process.env.APP_PATH, 'LICENSE.nsis.txt'),")
 $versionToken = '$' + '{version}'
 $extensionToken = '$' + '{ext}'
+$updaterFlagSource = "const updaterEnabled = process.env.NATIVEPHP_UPDATER_ENABLED === 'true';"
+$updaterFlagTarget = "const updaterEnabled = process.env.NATIVEPHP_UPDATER_ENABLED === 'true' || Boolean(process.env.NATIVEPHP_UPDATER_CONFIG);"
+$builderContent = $builderContent.Replace($updaterFlagSource, $updaterFlagTarget)
+if (-not $builderContent.Contains($updaterFlagTarget)) {
+    throw 'Unexpected NativePHP updater template.'
+}
 $builderContent = $builderContent.Replace('        signAndEditExecutable: false,' + [Environment]::NewLine, '')
 if (-not $builderContent.Contains("icon: join(process.env.APP_PATH, 'public', 'icon.ico'),")) {
     $builderContent = $builderContent.Replace('    win: {', "    win: {" + [Environment]::NewLine + "        icon: join(process.env.APP_PATH, 'public', 'icon.ico'),")
@@ -52,11 +58,39 @@ if (-not $builderContent.Contains('Serial Vision Installer version')) {
 if (-not $builderContent.Contains('Serial Vision Installer version')) { throw 'Unexpected NativePHP electron-builder template.' }
 [IO.File]::WriteAllText($builder, $builderContent, [Text.UTF8Encoding]::new($false))
 $env:Path = 'F:\Tools\php-8_5;' + $env:Path
+# NativePHP's builder template enables the updater only when this value is
+# literally 'true'. The package command does not forward the config default.
+$env:NATIVEPHP_UPDATER_ENABLED = 'true'
+# Serial Vision precomputed Electron startup configuration
+# NativePHP normally boots Laravel once only to return config('nativephp'). On
+# cold Windows machines this can spend tens of seconds in Defender scanning PHP
+# source. Generate the exact production config during packaging instead.
+$startupConfigFile = Join-Path $projectDirectory 'nativephp-startup-config.json'
+if (Test-Path -LiteralPath $startupConfigFile) {
+    throw "Temporary startup config already exists: $startupConfigFile"
+}
+$startupConfigPhp = 'require ''vendor/autoload.php''; $app = require ''bootstrap/app.php''; $kernel = $app->make(Illuminate\Contracts\Console\Kernel::class); $kernel->bootstrap(); echo json_encode(config(''nativephp''));'
+$startupConfigOutput = & $php -r $startupConfigPhp
+if ($LASTEXITCODE -ne 0) {
+    throw "Could not generate the NativePHP startup configuration (exit code $LASTEXITCODE)."
+}
+$startupConfigJson = ($startupConfigOutput -join [Environment]::NewLine).Trim()
+try {
+    $null = $startupConfigJson | ConvertFrom-Json -ErrorAction Stop
+} catch {
+    throw "Generated NativePHP startup configuration is not valid JSON: $($_.Exception.Message)"
+}
+[IO.File]::WriteAllText($startupConfigFile, $startupConfigJson, [Text.UTF8Encoding]::new($false))
 Push-Location $projectDirectory
 try {
     & $php artisan native:build win x64 --no-interaction
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-} finally { Pop-Location }
+} finally {
+    Pop-Location
+    if (Test-Path -LiteralPath $startupConfigFile) {
+        Remove-Item -LiteralPath $startupConfigFile -Force
+    }
+}
 $version = (Get-Content -LiteralPath (Join-Path $projectDirectory 'VERSION') -Raw).Trim()
 $installer = Join-Path $projectDirectory ("nativephp\electron\dist\Serial Vision Installer version $version.exe")
 if (-not (Test-Path -LiteralPath $installer)) { throw "Installer was not created: $installer" }

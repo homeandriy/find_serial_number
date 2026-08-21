@@ -43,7 +43,9 @@
     const isDevelopment = @json(app()->environment('local'));
     const sync = () => { const canComplete = accepted.checked && directory.value.trim().length > 0; complete.disabled = !canComplete; complete.setAttribute('aria-disabled', String(!canComplete)); };
     const post = async (url, data = {}) => {
-        const controller = new AbortController();`n        const timeout = window.setTimeout(() => controller.abort(), 12000);`n        const response = await fetch(url, {
+        const controller = new AbortController();
+        const timeout = window.setTimeout(() => controller.abort(), 12000);
+        const response = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': csrf },
             body: JSON.stringify(data),

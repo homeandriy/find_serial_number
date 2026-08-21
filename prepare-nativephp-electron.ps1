@@ -135,6 +135,24 @@ NativePHP.bootstrap(app, defaultIcon, phpBinary, certificate, appPath);
     [IO.File]::WriteAllText($mainEntrypoint, $mainSource, [Text.UTF8Encoding]::new($false))
 }
 
+$splashSafetyMarker = '// Serial Vision startup splash safety v1'
+
+if (-not $mainSource.Contains($splashSafetyMarker)) {
+    $unsafeSplashCloseGuard = 'if (!splashWindow?.isDestroyed()) {'
+    $safeSplashCloseGuard = 'if (splashWindow && !splashWindow.isDestroyed()) {'
+
+    if (-not $mainSource.Contains($unsafeSplashCloseGuard)) {
+        throw 'NativePHP splash close guard template was not found.'
+    }
+
+    $mainSource = $mainSource.Replace($unsafeSplashCloseGuard, $safeSplashCloseGuard)
+    $mainSource = $mainSource.Replace(
+        $splashMarker,
+        $splashMarker + [Environment]::NewLine + $splashSafetyMarker
+    )
+    [IO.File]::WriteAllText($mainEntrypoint, $mainSource, [Text.UTF8Encoding]::new($false))
+}
+
 $phpRuntime = Join-Path $ProjectDirectory 'vendor\nativephp\desktop\resources\electron\electron-plugin\dist\server\php.js'
 if (-not (Test-Path -LiteralPath $phpRuntime)) {
     throw "NativePHP Electron PHP runtime was not found: $phpRuntime"
@@ -278,6 +296,65 @@ if (-not $phpRuntimeSource.Contains($diagnosticCorrectionMarker)) {
 
     [IO.File]::WriteAllText($phpRuntime, $phpRuntimeSource, [Text.UTF8Encoding]::new($false))
 }
+$startupConfigMarker = '// Serial Vision precomputed startup config v1'
+
+if (-not $phpRuntimeSource.Contains($startupConfigMarker)) {
+    $startupConfigPatch = @"
+function retrieveNativePHPConfig() {
+    return __awaiter(this, void 0, void 0, function* () {
+        const appPath = getAppPath();
+        const precomputedConfigPath = join(appPath, 'nativephp-startup-config.json');
+
+        if (app.isPackaged && existsSync(precomputedConfigPath)) {
+            try {
+                const stdout = readFileSync(precomputedConfigPath, 'utf8');
+                JSON.parse(stdout);
+                logStartup('NativePHP precomputed config loaded');
+                return { stdout, stderr: '' };
+            }
+            catch (error) {
+                logStartup('NativePHP precomputed config is invalid; falling back to PHP');
+            }
+        }
+
+        logStartup('NativePHP config command started');
+        const env = Object.assign(Object.assign({}, process.env), getDefaultEnvironmentVariables());
+        const phpOptions = {
+            cwd: appPath,
+            env,
+        };
+        const command = ['artisan', 'native:config'];
+        if (runningSecureBuild()) {
+            command.unshift(join(appPath, 'build', '__nativephp_app_bundle'));
+        }
+        const result = yield promisify(execFile)(state.php, command, phpOptions);
+        logStartup('NativePHP config command finished');
+        return result;
+    });
+}
+"@
+
+    $phpRuntimeSource = [regex]::Replace(
+        $phpRuntimeSource,
+        '(?s)function retrieveNativePHPConfig\(\) \{.*?\n\}',
+        $startupConfigPatch,
+        1
+    )
+
+    if (-not $phpRuntimeSource.Contains($startupConfigMarker)) {
+        $phpRuntimeSource = $phpRuntimeSource.Replace(
+            'function retrieveNativePHPConfig() {',
+            $startupConfigMarker + [Environment]::NewLine + 'function retrieveNativePHPConfig() {'
+        )
+    }
+
+    if (-not $phpRuntimeSource.Contains("logStartup('NativePHP precomputed config loaded')")) {
+        throw 'NativePHP startup config template was not patched.'
+    }
+
+    [IO.File]::WriteAllText($phpRuntime, $phpRuntimeSource, [Text.UTF8Encoding]::new($false))
+}
+
 $updaterRuntime = Join-Path $ProjectDirectory 'vendor\nativephp\desktop\resources\electron\electron-plugin\dist\index.js'
 if (-not (Test-Path -LiteralPath $updaterRuntime)) {
     throw "NativePHP Electron updater runtime was not found: $updaterRuntime"
@@ -301,11 +378,126 @@ if (-not (Test-Path -LiteralPath $autoUpdaterApi)) {
 }
 
 $autoUpdaterApiSource = [IO.File]::ReadAllText($autoUpdaterApi)
+$updaterDiagnosticsMarker = '// Serial Vision updater diagnostics v1'
+
+if (-not $autoUpdaterApiSource.Contains($updaterDiagnosticsMarker)) {
+    $autoUpdaterApiSource = $autoUpdaterApiSource.Replace(
+        "import electronUpdater from 'electron-updater';",
+        "import { appendFileSync, mkdirSync } from 'fs';" + [Environment]::NewLine +
+        "import { app } from 'electron';" + [Environment]::NewLine +
+        "import { join } from 'path';" + [Environment]::NewLine +
+        "import electronUpdater from 'electron-updater';"
+    )
+    $autoUpdaterApiSource = $autoUpdaterApiSource.Replace(
+        'const router = express.Router();',
+        @"
+const router = express.Router();
+$updaterDiagnosticsMarker
+const updaterLogPath = join(app.getPath('appData'), 'obladnannia-ta-dani', 'startup.log');
+let updateCheckTimeout = null;
+const logUpdater = (message) => {
+    try {
+        mkdirSync(join(app.getPath('appData'), 'obladnannia-ta-dani'), { recursive: true });
+        appendFileSync(updaterLogPath, '[' + new Date().toISOString() + '] [electron-updater] ' + message + '\n');
+    }
+    catch (_) {
+        // Updater diagnostics must never affect update delivery.
+    }
+};
+const finishUpdateCheck = () => {
+    if (updateCheckTimeout) {
+        clearTimeout(updateCheckTimeout);
+        updateCheckTimeout = null;
+    }
+};
+"@
+    )
+    $autoUpdaterApiSource = $autoUpdaterApiSource.Replace(
+        "router.post('/check-for-updates', (req, res) => {" + [Environment]::NewLine + '    autoUpdater.checkForUpdates();',
+        @"
+router.post('/check-for-updates', (req, res) => {
+    finishUpdateCheck();
+    logUpdater('Запит перевірки отримано від Laravel; Electron updater готує HTTPS-запит до GitHub Releases homeandriy/find_serial_number.');
+    updateCheckTimeout = setTimeout(() => {
+        updateCheckTimeout = null;
+        logUpdater('Відповідь GitHub Releases не отримана за 30 с; перевірка зависла або заблокована мережею.');
+    }, 30000);
+    autoUpdater.checkForUpdates();
+"@
+    )
+    $autoUpdaterApiSource = $autoUpdaterApiSource.Replace(
+        "autoUpdater.addListener('checking-for-update', () => {" + [Environment]::NewLine,
+        "autoUpdater.addListener('checking-for-update', () => {" + [Environment]::NewLine + "    logUpdater('HTTPS-запит надіслано; очікується метадані релізу (latest.yml).');" + [Environment]::NewLine
+    )
+    $autoUpdaterApiSource = $autoUpdaterApiSource.Replace(
+        "autoUpdater.addListener('update-available', (event) => {" + [Environment]::NewLine,
+        "autoUpdater.addListener('update-available', (event) => {" + [Environment]::NewLine + "    finishUpdateCheck();" + [Environment]::NewLine + "    logUpdater('GitHub відповів: доступна версія ' + event.version + '; починається завантаження.');" + [Environment]::NewLine
+    )
+    $autoUpdaterApiSource = $autoUpdaterApiSource.Replace(
+        "autoUpdater.addListener('update-not-available', (event) => {" + [Environment]::NewLine,
+        "autoUpdater.addListener('update-not-available', (event) => {" + [Environment]::NewLine + "    finishUpdateCheck();" + [Environment]::NewLine + "    logUpdater('GitHub відповів: новішої версії немає; поточна ' + event.version + '.');" + [Environment]::NewLine
+    )
+    $autoUpdaterApiSource = $autoUpdaterApiSource.Replace(
+        "autoUpdater.addListener('error', (error) => {" + [Environment]::NewLine,
+        "autoUpdater.addListener('error', (error) => {" + [Environment]::NewLine + "    finishUpdateCheck();" + [Environment]::NewLine + "    logUpdater('Помилка перевірки: ' + error.name + ': ' + error.message);" + [Environment]::NewLine
+    )
+
+    if (-not $autoUpdaterApiSource.Contains($updaterDiagnosticsMarker)) {
+        throw 'NativePHP updater diagnostics template was not patched.'
+    }
+
+    [IO.File]::WriteAllText($autoUpdaterApi, $autoUpdaterApiSource, [Text.UTF8Encoding]::new($false))
+}
+
+
+$updaterEventDiagnosticsMarker = '// Serial Vision updater event diagnostics v1'
+
+if (-not $autoUpdaterApiSource.Contains($updaterEventDiagnosticsMarker)) {
+    $autoUpdaterApiSource = [regex]::Replace(
+        $autoUpdaterApiSource,
+        "autoUpdater\.addListener\('checking-for-update', \(\) => \{\r?\n",
+        "autoUpdater.addListener('checking-for-update', () => {" + [Environment]::NewLine + "    " + $updaterEventDiagnosticsMarker + [Environment]::NewLine + "    logUpdater('HTTPS-запит надіслано; очікується метадані релізу (latest.yml).');" + [Environment]::NewLine,
+        1
+    )
+    $autoUpdaterApiSource = [regex]::Replace(
+        $autoUpdaterApiSource,
+        "autoUpdater\.addListener\('update-available', \(event\) => \{\r?\n",
+        "autoUpdater.addListener('update-available', (event) => {" + [Environment]::NewLine + "    finishUpdateCheck();" + [Environment]::NewLine + "    logUpdater('GitHub відповів: доступна версія ' + event.version + '; починається завантаження.');" + [Environment]::NewLine,
+        1
+    )
+    $autoUpdaterApiSource = [regex]::Replace(
+        $autoUpdaterApiSource,
+        "autoUpdater\.addListener\('update-not-available', \(event\) => \{\r?\n",
+        "autoUpdater.addListener('update-not-available', (event) => {" + [Environment]::NewLine + "    finishUpdateCheck();" + [Environment]::NewLine + "    logUpdater('GitHub відповів: новішої версії немає; поточна ' + event.version + '.');" + [Environment]::NewLine,
+        1
+    )
+    $autoUpdaterApiSource = [regex]::Replace(
+        $autoUpdaterApiSource,
+        "autoUpdater\.addListener\('error', \(error\) => \{\r?\n",
+        "autoUpdater.addListener('error', (error) => {" + [Environment]::NewLine + "    finishUpdateCheck();" + [Environment]::NewLine + "    logUpdater('Помилка перевірки: ' + error.name + ': ' + error.message);" + [Environment]::NewLine,
+        1
+    )
+
+    if (-not $autoUpdaterApiSource.Contains($updaterEventDiagnosticsMarker)) {
+        throw 'NativePHP updater event listeners could not be instrumented.'
+    }
+
+    [IO.File]::WriteAllText($autoUpdaterApi, $autoUpdaterApiSource, [Text.UTF8Encoding]::new($false))
+}
+
+$updaterRequestDiagnosticsMarker = '// Serial Vision updater request diagnostics v1'
 $autoUpdaterApiMarker = '// Serial Vision updater rejection bridge v1'
 
 if (-not $autoUpdaterApiSource.Contains($autoUpdaterApiMarker)) {
     $autoUpdaterCheck = @"
 $autoUpdaterApiMarker
+    $updaterRequestDiagnosticsMarker
+    finishUpdateCheck();
+    logUpdater('Запит перевірки отримано від Laravel; Electron updater готує HTTPS-запит до GitHub Releases homeandriy/find_serial_number.');
+    updateCheckTimeout = setTimeout(() => {
+        updateCheckTimeout = null;
+        logUpdater('Відповідь GitHub Releases не отримана за 30 с; перевірка зависла або заблокована мережею.');
+    }, 30000);
     void autoUpdater.checkForUpdates().catch((error) => {
         notifyLaravel('events', {
             event: '\\Native\\Desktop\\Events\\AutoUpdater\\Error',
@@ -321,6 +513,48 @@ $autoUpdaterApiMarker
 
     if (-not $autoUpdaterApiSource.Contains($autoUpdaterApiMarker)) {
         throw 'Unexpected NativePHP auto-updater API template.'
+    }
+
+    [IO.File]::WriteAllText($autoUpdaterApi, $autoUpdaterApiSource, [Text.UTF8Encoding]::new($false))
+}
+if (-not $autoUpdaterApiSource.Contains($updaterRequestDiagnosticsMarker)) {
+    $legacyUpdaterBridge = @"
+$autoUpdaterApiMarker
+    void autoUpdater.checkForUpdates().catch((error) => {
+        notifyLaravel('events', {
+            event: '\\Native\\Desktop\\Events\\AutoUpdater\\Error',
+            payload: {
+                name: error.name,
+                message: error.message,
+                stack: error.stack,
+            },
+        });
+    });
+"@
+    $instrumentedUpdaterBridge = @"
+$autoUpdaterApiMarker
+    $updaterRequestDiagnosticsMarker
+    finishUpdateCheck();
+    logUpdater('Запит перевірки отримано від Laravel; Electron updater готує HTTPS-запит до GitHub Releases homeandriy/find_serial_number.');
+    updateCheckTimeout = setTimeout(() => {
+        updateCheckTimeout = null;
+        logUpdater('Відповідь GitHub Releases не отримана за 30 с; перевірка зависла або заблокована мережею.');
+    }, 30000);
+    void autoUpdater.checkForUpdates().catch((error) => {
+        notifyLaravel('events', {
+            event: '\\Native\\Desktop\\Events\\AutoUpdater\\Error',
+            payload: {
+                name: error.name,
+                message: error.message,
+                stack: error.stack,
+            },
+        });
+    });
+"@
+    $autoUpdaterApiSource = $autoUpdaterApiSource.Replace($legacyUpdaterBridge, $instrumentedUpdaterBridge)
+
+    if (-not $autoUpdaterApiSource.Contains($updaterRequestDiagnosticsMarker)) {
+        throw 'NativePHP updater request bridge could not be instrumented.'
     }
 
     [IO.File]::WriteAllText($autoUpdaterApi, $autoUpdaterApiSource, [Text.UTF8Encoding]::new($false))

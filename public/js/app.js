@@ -1326,7 +1326,7 @@ showDevices = async () => {
     });
 };
 ["#df-search", "#df-from", "#df-to", "#df-type", "#df-service"].forEach((s) =>
-    qs(s).addEventListener("change", () => {
+    qs(s)?.addEventListener("change", () => {
         devicesPage = 1;
     }),
 );
@@ -1407,55 +1407,6 @@ document
             status.textContent = error.message;
         }
     });
-const firstRunSetup = document.querySelector("#first-run-setup");
-if (firstRunSetup) {
-    const setupAccepted = document.querySelector("#setup-accepted"),
-        setupDirectory = document.querySelector("#setup-image-directory"),
-        setupChoose = document.querySelector("#choose-setup-directory"),
-        setupComplete = document.querySelector("#complete-setup"),
-        setupMessage = document.querySelector("#setup-message");
-    const updateSetupState = () => {
-        setupComplete.disabled = !(
-            setupAccepted.checked && setupDirectory.value.trim()
-        );
-    };
-    setupAccepted.addEventListener("change", updateSetupState);
-    setupChoose.addEventListener("click", async () => {
-        setupChoose.disabled = true;
-        setupMessage.textContent = "Відкриваємо вибір папки…";
-        try {
-            const result = await request("/image-directory/choose", "POST");
-            if (result.path) setupDirectory.value = result.path;
-            setupMessage.textContent = result.path
-                ? "Папку вибрано."
-                : "Вибір скасовано.";
-            updateSetupState();
-        } catch (error) {
-            setupMessage.textContent = error.message;
-        } finally {
-            setupChoose.disabled = false;
-        }
-    });
-    setupComplete.addEventListener("click", async () => {
-        setupComplete.disabled = true;
-        setupMessage.textContent = "Зберігаємо налаштування…";
-        try {
-            await request("/setup", "POST", {
-                accepted: setupAccepted.checked,
-                path: setupDirectory.value,
-            });
-            if (document.body.dataset.environment === "local") {
-                firstRunSetup.remove();
-            } else {
-                window.location.reload();
-            }
-        } catch (error) {
-            setupMessage.textContent = error.message;
-            updateSetupState();
-        }
-    });
-}
-
 // Equipment operation, contract and source-image fields.
 const operationLabel = (value) =>
     ({ receipt: "Прийом", issue: "Видача" })[value || "receipt"];

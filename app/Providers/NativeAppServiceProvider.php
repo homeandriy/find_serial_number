@@ -55,11 +55,11 @@ class NativeAppServiceProvider implements ProvidesPhpIni
 
         if (app()->environment('production') && config('nativephp.updater.enabled')) {
             Event::listen(CheckForUpdates::class, static function () use ($startupLog): void {
-                $startupLog->mark('Оновлення: користувач запустив ручну перевірку');
+                $startupLog->mark('Оновлення: користувач запустив ручну перевірку; команда передана Electron updater для GitHub Releases homeandriy/find_serial_number');
                 AutoUpdater::checkForUpdates();
             });
             Event::listen(CheckingForUpdate::class, static function () use ($startupLog): void {
-                $startupLog->mark('Оновлення: NativePHP розпочав перевірку');
+                $startupLog->mark('Оновлення: Electron updater почав HTTPS-перевірку GitHub Releases; очікується відповідь сервера');
             });
             Event::listen(UpdateNotAvailable::class, static function (UpdateNotAvailable $event) use ($startupLog): void {
                 $startupLog->mark("Оновлення: новішої версії немає; поточна {$event->version}");
@@ -75,7 +75,7 @@ class NativeAppServiceProvider implements ProvidesPhpIni
             Event::listen(Error::class, static function (Error $event) use ($startupLog): void {
                 $startupLog->mark("Оновлення: помилка {$event->name}: {$event->message}");
             });
-            $startupLog->mark('Оновлення: автоматична перевірка розпочата');
+            $startupLog->mark('Оновлення: автоматична перевірка передана Electron updater для GitHub Releases homeandriy/find_serial_number');
             AutoUpdater::checkForUpdates();
         }
 
