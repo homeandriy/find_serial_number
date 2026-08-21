@@ -10,18 +10,30 @@ final class TesseractRecognizer
 {
     public function recognize(string $imagePath): string
     {
+        $binary = (string) config('serial-number.tesseract_binary');
+        $tessdataDirectory = (string) config('serial-number.tessdata_directory');
+
+        if (! is_file($binary)) {
+            throw new RuntimeException('Локальний OCR недоступний: Tesseract не знайдено у встановленій програмі. Перевстановіть застосунок.');
+        }
+
+        if (! is_dir($tessdataDirectory)) {
+            throw new RuntimeException('Локальний OCR недоступний: не знайдено мовні дані Tesseract. Перевстановіть застосунок.');
+        }
+
         $temporaryDirectory = storage_path('app/ocr-temp/'.Str::uuid());
         File::ensureDirectoryExists($temporaryDirectory);
 
         try {
             $bestText = '';
             $bestScore = -1;
+            $failures = [];
 
             foreach ($this->variants($imagePath, $temporaryDirectory) as $variant) {
                 $result = Process::timeout(20)->run([
-                    (string) config('serial-number.tesseract_binary'),
+                    $binary,
                     '--tessdata-dir',
-                    (string) config('serial-number.tessdata_directory'),
+                    $tessdataDirectory,
                     $variant,
                     'stdout',
                     '-l',
@@ -31,6 +43,12 @@ final class TesseractRecognizer
                 ]);
 
                 if ($result->failed()) {
+                    $failure = trim($result->errorOutput() ?: $result->output());
+
+                    if ($failure !== '') {
+                        $failures[] = $failure;
+                    }
+
                     continue;
                 }
 
@@ -45,7 +63,9 @@ final class TesseractRecognizer
             }
 
             if ($bestScore < 0) {
-                throw new RuntimeException('Не вдалося розпізнати текст на зображенні.');
+                $detail = $failures === [] ? '' : ' '.Str::limit(implode(' ', array_unique($failures)), 300);
+
+                throw new RuntimeException('Не вдалося розпізнати текст на зображенні.'.$detail);
             }
 
             return $bestText;

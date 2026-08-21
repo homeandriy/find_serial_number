@@ -57,7 +57,7 @@ if (-not $mainSource.Contains($splashMarker) -and $mainSource.Contains($legacySp
 
 if (-not $mainSource.Contains($splashMarker)) {
     $mainSource = $mainSource.Replace("import { app } from 'electron';", "import { app, BrowserWindow, nativeImage } from 'electron';")
-    $mainSource = $mainSource.Replace("import path from 'path';", "import path from 'path';`r`nimport { pathToFileURL } from 'url';")
+    $mainSource = $mainSource.Replace("import path from 'path';", "import path from 'path';`r`nimport { appendFileSync } from 'fs';")
 
     if (-not $mainSource.Contains("import { app, BrowserWindow, nativeImage } from 'electron';")) {
         throw 'Unexpected NativePHP Electron main template; BrowserWindow import was not patched.'
@@ -66,9 +66,20 @@ if (-not $mainSource.Contains($splashMarker)) {
     $splash = @"
 
 // Serial Vision startup splash v3
+const electronStartupStartedAt = Date.now();
+const logElectronStartup = (message) => {
+    try {
+        const elapsed = (Date.now() - electronStartupStartedAt).toFixed(1);
+        appendFileSync(path.join(app.getPath("userData"), "startup.log"), "[" + new Date().toISOString() + "] [electron-main pid=" + process.pid + "] [+" + elapsed + "ms] " + message + "\n");
+    } catch (_) {
+        // Startup diagnostics must never block the desktop application.
+    }
+};
+logElectronStartup("Electron main entrypoint initialized");
 let splashWindow = null;
 
 app.whenReady().then(() => {
+    logElectronStartup("Electron ready; creating splash window");
 
     splashWindow = new BrowserWindow({
         width: 540,
@@ -87,20 +98,25 @@ app.whenReady().then(() => {
     const splashIcon = nativeImage.createFromPath(defaultIcon).toDataURL();
     const splashHtml = '<!doctype html><html lang="uk"><head><meta charset="utf-8"><style>body{margin:0;background:radial-gradient(circle at top left,#1e5b8e,#0f172a 62%);color:#f8fafc;font-family:Segoe UI,Arial,sans-serif;display:grid;place-items:center;height:100vh}.card{text-align:center}.logo{width:88px;height:88px;object-fit:contain;margin-bottom:22px}.title{font-size:28px;font-weight:700}.caption{margin-top:9px;color:#bfdbfe;font-size:16px}.loader{width:190px;height:5px;border-radius:999px;background:#243449;margin:30px auto 0;overflow:hidden}.loader:after{content:"";display:block;width:45%;height:100%;border-radius:inherit;background:#38bdf8;animation:loading 1.25s ease-in-out infinite}@keyframes loading{0%{transform:translateX(-110%)}100%{transform:translateX(330%)}}</style></head><body><div class="card"><img class="logo" src="' + splashIcon + '" alt="Serial Vision"><div class="title">Обладнання та дані</div><div class="caption">Запуск програми…</div><div class="loader"></div></div></body></html>';
     splashWindow.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(splashHtml));
+    logElectronStartup("Splash content requested; NativePHP bootstrap starting");
     NativePHP.bootstrap(app, defaultIcon, phpBinary, certificate, appPath);
+    logElectronStartup("NativePHP bootstrap invoked");
 });
 
 app.on('browser-window-created', (_, window) => {
+    logElectronStartup("BrowserWindow created");
     if (!splashWindow || window === splashWindow) {
         return;
     }
 
     window.webContents.on('did-navigate', (_, url) => {
+        logElectronStartup("BrowserWindow navigated: " + url);
         if (!url.startsWith('http://127.0.0.1') && !url.startsWith('http://localhost')) {
             return;
         }
 
         if (!splashWindow?.isDestroyed()) {
+            logElectronStartup("Laravel window reached; closing splash");
             splashWindow.close();
         }
 
@@ -139,7 +155,9 @@ if (-not $phpRuntimeSource.Contains($startupMarker)) {
     $runtimeSnippet = @(
         "mkdirpSync(join(storagePath, 'framework', 'testing'));"
         $startupMarker
-        "const startupLogPath = join(app.getPath('userData'), 'startup.log');"
+        "const startupLogDirectory = join(app.getPath('appData'), 'obladnannia-ta-dani');"
+        "mkdirSync(startupLogDirectory, { recursive: true });"
+        "const startupLogPath = join(startupLogDirectory, 'startup.log');"
         'const logStartup = (message) => appendFileSync(startupLogPath, `[${new Date().toISOString()}] [electron] ${message}\n`);'
         "logStartup('Electron runtime initialized');"
     ) -join [Environment]::NewLine
@@ -160,7 +178,7 @@ $startupLogLocationMarker = '// Serial Vision startup log path v1'
 
 if (-not $phpRuntimeSource.Contains($startupLogLocationMarker)) {
     $legacyStartupLogPath = "const startupLogPath = join(storagePath, 'logs', 'startup.log');"
-    $stableStartupLogPath = "const startupLogPath = join(app.getPath('userData'), 'startup.log');"
+    $stableStartupLogPath = "const startupLogPath = join(startupLogDirectory, 'startup.log');"
 
     if ($phpRuntimeSource.Contains($legacyStartupLogPath)) {
         $phpRuntimeSource = $phpRuntimeSource.Replace($legacyStartupLogPath, $startupLogLocationMarker + [Environment]::NewLine + $stableStartupLogPath)

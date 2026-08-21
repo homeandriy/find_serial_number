@@ -668,16 +668,41 @@ const showUpdateDialog = message => {
 };
 const updateVersion = payload => payload?.version ? ' v' + payload.version : '';
 let manualUpdateCheck = false;
-document.querySelector('#update-close')?.addEventListener('click', () => updateDialog?.close());
+let manualUpdateCheckTimeout = null;
+const finishManualUpdateCheck = message => {
+    if (manualUpdateCheck) showUpdateDialog(message);
+    manualUpdateCheck = false;
+    if (manualUpdateCheckTimeout) {
+        window.clearTimeout(manualUpdateCheckTimeout);
+        manualUpdateCheckTimeout = null;
+    }
+};
+const startManualUpdateCheck = () => {
+    manualUpdateCheck = true;
+    if (manualUpdateCheckTimeout) window.clearTimeout(manualUpdateCheckTimeout);
+    manualUpdateCheckTimeout = window.setTimeout(() => {
+        finishManualUpdateCheck('Перевірка оновлень триває надто довго. Перевірте підключення до інтернету та спробуйте ще раз.');
+    }, 30000);
+};
+document.querySelector('#update-close')?.addEventListener('click', () => {
+    manualUpdateCheck = false;
+    if (manualUpdateCheckTimeout) window.clearTimeout(manualUpdateCheckTimeout);
+    manualUpdateCheckTimeout = null;
+    updateDialog?.close();
+});
 const registerUpdateNativeEvents = () => {
     window.Native?.on?.('App\\Events\\CheckForUpdates', () => {
-        manualUpdateCheck = true;
-        showUpdateDialog(document.body.dataset.environment === 'production' ? 'Перевіряємо наявність нової версії…' : 'Перевірка оновлень доступна у встановленій версії програми.');
+        if (document.body.dataset.environment !== 'production') {
+            showUpdateDialog('Перевірка оновлень доступна у встановленій версії програми.');
+            return;
+        }
+        startManualUpdateCheck();
+        showUpdateDialog('Перевіряємо наявність нової версії…');
     });
     window.Native?.on?.('Native\\Desktop\\Events\\AutoUpdater\\CheckingForUpdate', () => { if (manualUpdateCheck) showUpdateDialog('Перевіряємо наявність нової версії…'); });
-    window.Native?.on?.('Native\\Desktop\\Events\\AutoUpdater\\UpdateNotAvailable', () => { if (manualUpdateCheck) showUpdateDialog('У вас уже встановлена актуальна версія.'); manualUpdateCheck = false; });
-    window.Native?.on?.('Native\\Desktop\\Events\\AutoUpdater\\UpdateAvailable', payload => { if (manualUpdateCheck) showUpdateDialog('Доступне оновлення' + updateVersion(payload) + '. Завантажуємо та встановлюємо його…'); manualUpdateCheck = false; });
-    window.Native?.on?.('Native\\Desktop\\Events\\AutoUpdater\\Error', payload => { if (manualUpdateCheck) showUpdateDialog('Не вдалося перевірити оновлення. ' + (payload?.message || 'Перевірте підключення до інтернету та повторіть спробу.')); manualUpdateCheck = false; });
+    window.Native?.on?.('Native\\Desktop\\Events\\AutoUpdater\\UpdateNotAvailable', () => finishManualUpdateCheck('У вас уже встановлена актуальна версія.'));
+    window.Native?.on?.('Native\\Desktop\\Events\\AutoUpdater\\UpdateAvailable', payload => finishManualUpdateCheck('Доступне оновлення' + updateVersion(payload) + '. Завантажуємо та встановлюємо його…'));
+    window.Native?.on?.('Native\\Desktop\\Events\\AutoUpdater\\Error', payload => finishManualUpdateCheck('Не вдалося перевірити оновлення. ' + (payload?.message || 'Перевірте підключення до інтернету та повторіть спробу.')));
 };
 window.addEventListener('native:init', registerUpdateNativeEvents, { once: true });
 registerUpdateNativeEvents();

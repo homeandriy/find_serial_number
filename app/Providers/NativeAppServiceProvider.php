@@ -9,8 +9,11 @@ use App\Services\ApplicationLaunchTracker;
 use App\Services\StartupLog;
 use Illuminate\Support\Facades\Event;
 use Native\Desktop\Contracts\ProvidesPhpIni;
+use Native\Desktop\Events\AutoUpdater\CheckingForUpdate;
+use Native\Desktop\Events\AutoUpdater\Error;
 use Native\Desktop\Events\AutoUpdater\UpdateAvailable;
 use Native\Desktop\Events\AutoUpdater\UpdateDownloaded;
+use Native\Desktop\Events\AutoUpdater\UpdateNotAvailable;
 use Native\Desktop\Facades\AutoUpdater;
 use Native\Desktop\Facades\Menu;
 use Native\Desktop\Facades\Window;
@@ -51,9 +54,28 @@ class NativeAppServiceProvider implements ProvidesPhpIni
         $startupLog->mark('Перевірка оновлень планується у фоновому режимі');
 
         if (app()->environment('production') && config('nativephp.updater.enabled')) {
-            Event::listen(CheckForUpdates::class, static fn (): mixed => AutoUpdater::checkForUpdates());
-            Event::listen(UpdateAvailable::class, static fn (): mixed => AutoUpdater::downloadUpdate());
-            Event::listen(UpdateDownloaded::class, static fn (): mixed => AutoUpdater::quitAndInstall());
+            Event::listen(CheckForUpdates::class, static function () use ($startupLog): void {
+                $startupLog->mark('Оновлення: користувач запустив ручну перевірку');
+                AutoUpdater::checkForUpdates();
+            });
+            Event::listen(CheckingForUpdate::class, static function () use ($startupLog): void {
+                $startupLog->mark('Оновлення: NativePHP розпочав перевірку');
+            });
+            Event::listen(UpdateNotAvailable::class, static function (UpdateNotAvailable $event) use ($startupLog): void {
+                $startupLog->mark("Оновлення: новішої версії немає; поточна {$event->version}");
+            });
+            Event::listen(UpdateAvailable::class, static function (UpdateAvailable $event) use ($startupLog): void {
+                $startupLog->mark("Оновлення: доступна версія {$event->version}; завантаження розпочато");
+                AutoUpdater::downloadUpdate();
+            });
+            Event::listen(UpdateDownloaded::class, static function (UpdateDownloaded $event) use ($startupLog): void {
+                $startupLog->mark("Оновлення: версію {$event->version} завантажено; перезапуск для встановлення");
+                AutoUpdater::quitAndInstall();
+            });
+            Event::listen(Error::class, static function (Error $event) use ($startupLog): void {
+                $startupLog->mark("Оновлення: помилка {$event->name}: {$event->message}");
+            });
+            $startupLog->mark('Оновлення: автоматична перевірка розпочата');
             AutoUpdater::checkForUpdates();
         }
 
