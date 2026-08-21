@@ -20,6 +20,7 @@ Route::get('/', function (ImageCatalog $catalog, AiAgentRepository $agents, Star
 
 Route::get('/image-catalog', [ImageRecognitionController::class, 'catalog']);
 Route::post('/startup/renderer-ready', [ImageRecognitionController::class, 'markRendererReady']);
+Route::post('/startup-log/open', [ImageRecognitionController::class, 'openStartupLog']);
 Route::get('/images/{image}', [ImageRecognitionController::class, 'image'])->where('image', '[A-Za-z0-9_-]+');
 Route::post('/images/{image}/rotate', [ImageRecognitionController::class, 'rotate'])->where('image', '[A-Za-z0-9_-]+');
 Route::post('/images/{image}/open', [ImageRecognitionController::class, 'openImage'])->where('image', '[A-Za-z0-9_-]+');

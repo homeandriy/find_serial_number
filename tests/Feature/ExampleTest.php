@@ -34,4 +34,13 @@ class ExampleTest extends TestCase
     {
         $this->post('/startup/renderer-ready')->assertNoContent();
     }
+
+    public function test_startup_log_can_be_opened(): void
+    {
+        \Native\Desktop\Facades\Shell::fake();
+
+        $this->post('/startup-log/open')->assertNoContent();
+
+        \Native\Desktop\Facades\Shell::assertOpenedFile(app(\App\Services\StartupLog::class)->path());
+    }
 }

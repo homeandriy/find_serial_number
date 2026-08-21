@@ -13,7 +13,6 @@ use Native\Desktop\Events\AutoUpdater\UpdateAvailable;
 use Native\Desktop\Events\AutoUpdater\UpdateDownloaded;
 use Native\Desktop\Facades\AutoUpdater;
 use Native\Desktop\Facades\Menu;
-use Native\Desktop\Facades\Shell;
 use Native\Desktop\Facades\Window;
 
 class NativeAppServiceProvider implements ProvidesPhpIni
@@ -45,7 +44,6 @@ class NativeAppServiceProvider implements ProvidesPhpIni
         config()->set('serial-number.launch_count', app(ApplicationLaunchTracker::class)->registerLaunch());
         $startupLog->mark('Локальний стан запуску готовий');
 
-        Event::listen(OpenStartupLog::class, static fn (): string => Shell::openFile(app(StartupLog::class)->path()));
 
         if (app()->environment('production') && config('nativephp.updater.enabled')) {
             Event::listen(CheckForUpdates::class, static fn (): mixed => AutoUpdater::checkForUpdates());

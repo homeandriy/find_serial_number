@@ -644,6 +644,21 @@ document.querySelector('#about-external-homeandriy')?.addEventListener('click', 
 const registerAboutNativeEvent = () => window.Native?.on?.('App\\Events\\ShowAboutDialog', showAboutDialog);
 window.addEventListener('native:init', registerAboutNativeEvent, { once: true });
 registerAboutNativeEvent();
+
+const openStartupLog = async () => {
+    status.textContent = 'Відкриваємо лог запуску…';
+
+    try {
+        await request('/startup-log/open', 'POST');
+        status.textContent = 'Лог запуску відкрито.';
+    } catch (error) {
+        status.textContent = error.message;
+    }
+};
+const registerStartupLogNativeEvent = () => window.Native?.on?.('App\\Events\\OpenStartupLog', openStartupLog);
+window.addEventListener('native:init', registerStartupLogNativeEvent, { once: true });
+registerStartupLogNativeEvent();
+
 // The Help menu opens the update status dialog and the NativePHP updater reports its result here.
 const updateDialog = document.querySelector('#update-dialog');
 const updateDialogMessage = document.querySelector('#update-dialog-message');

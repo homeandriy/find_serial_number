@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.12.0 - 2026-08-21
+
+### Added
+
+- Add a Help menu action to open the startup log and show its result in the application.
+- Add a manual update check from Help with a status dialog.
+
+### Changed
+
+- Defer image catalog loading until the first application screen is displayed.
+
+### Fixed
+
+- Reduce NativePHP startup work and make updater checks use published GitHub releases.
+
 ## v0.11.0 - 2026-08-21
 
 ### Added

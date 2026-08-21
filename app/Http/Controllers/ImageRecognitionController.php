@@ -36,6 +36,17 @@ final class ImageRecognitionController extends Controller
 
         return response()->json(status: 204);
     }
+    public function openStartupLog(StartupLog $startupLog): JsonResponse
+    {
+        $startupLog->mark('Користувач відкриває лог запуску');
+        $error = Shell::openFile($startupLog->path());
+
+        if ($error !== '') {
+            return response()->json(['message' => "Не вдалося відкрити лог запуску: {$error}"], 422);
+        }
+
+        return response()->json(status: 204);
+    }
     public function image(string $image, ImageCatalog $catalog): BinaryFileResponse
     {
         try { return response()->file($catalog->pathFor($image)); } catch (RuntimeException) { abort(404); }
