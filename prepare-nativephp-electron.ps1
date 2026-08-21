@@ -295,3 +295,33 @@ if (-not $updaterRuntimeSource.Contains($updaterMarker)) {
 
     [IO.File]::WriteAllText($updaterRuntime, $updaterRuntimeSource, [Text.UTF8Encoding]::new($false))
 }
+$autoUpdaterApi = Join-Path $ProjectDirectory 'vendor\nativephp\desktop\resources\electron\electron-plugin\dist\server\api\autoUpdater.js'
+if (-not (Test-Path -LiteralPath $autoUpdaterApi)) {
+    throw "NativePHP Electron auto-updater API was not found: $autoUpdaterApi"
+}
+
+$autoUpdaterApiSource = [IO.File]::ReadAllText($autoUpdaterApi)
+$autoUpdaterApiMarker = '// Serial Vision updater rejection bridge v1'
+
+if (-not $autoUpdaterApiSource.Contains($autoUpdaterApiMarker)) {
+    $autoUpdaterCheck = @"
+$autoUpdaterApiMarker
+    void autoUpdater.checkForUpdates().catch((error) => {
+        notifyLaravel('events', {
+            event: '\\Native\\Desktop\\Events\\AutoUpdater\\Error',
+            payload: {
+                name: error.name,
+                message: error.message,
+                stack: error.stack,
+            },
+        });
+    });
+"@
+    $autoUpdaterApiSource = $autoUpdaterApiSource.Replace('    autoUpdater.checkForUpdates();', $autoUpdaterCheck)
+
+    if (-not $autoUpdaterApiSource.Contains($autoUpdaterApiMarker)) {
+        throw 'Unexpected NativePHP auto-updater API template.'
+    }
+
+    [IO.File]::WriteAllText($autoUpdaterApi, $autoUpdaterApiSource, [Text.UTF8Encoding]::new($false))
+}

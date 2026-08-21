@@ -15,6 +15,13 @@ if (-not (Test-Path -LiteralPath (Join-Path $ocrDirectory 'tesseract.exe'))) {
     New-Item -ItemType Directory -Force -Path $ocrDirectory | Out-Null
     Expand-Archive -LiteralPath $ocrArchive -DestinationPath $ocrDirectory -Force
 }
+$tessdataSource = Join-Path $projectDirectory 'resources\ocr\tessdata'
+$tessdataTarget = Join-Path $ocrDirectory 'tessdata'
+if (-not (Test-Path -LiteralPath (Join-Path $tessdataSource 'eng.traineddata'))) {
+    throw "Tesseract language data not found: $tessdataSource"
+}
+New-Item -ItemType Directory -Force -Path $tessdataTarget | Out-Null
+Copy-Item -Path (Join-Path $tessdataSource '*') -Destination $tessdataTarget -Recurse -Force
 & (Join-Path $projectDirectory 'prepare-nativephp-electron.ps1') -ProjectDirectory $projectDirectory
 $licenseSource = Join-Path $projectDirectory 'LICENSE.txt'
 $nsisLicense = Join-Path $projectDirectory 'LICENSE.nsis.txt'

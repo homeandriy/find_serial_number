@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.12.7 - 2026-08-21
+
+### Fixed
+
+- Bundle Tesseract English and Ukrainian language data into the Windows installer so local OCR works after installation.
+- Forward rejected Electron updater checks to the application instead of leaving the update dialog waiting indefinitely.
+
 ## v0.12.6 - 2026-08-21
 
 ### Changed

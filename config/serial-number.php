@@ -1,11 +1,17 @@
 <?php
+
+$extrasDirectory = rtrim((string) env('NATIVEPHP_EXTRAS_PATH', base_path('extras')), DIRECTORY_SEPARATOR);
+$tesseractDirectory = $extrasDirectory.DIRECTORY_SEPARATOR.'tesseract';
+
 return [
     'image_directory' => env('SERIAL_IMAGES_PATH', base_path('images')),
-    'tesseract_binary' => env(
-        'TESSERACT_BINARY',
-        rtrim((string) env('NATIVEPHP_EXTRAS_PATH', base_path('extras')), DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR.'tesseract'.DIRECTORY_SEPARATOR.'tesseract.exe',
+    'tesseract_binary' => env('TESSERACT_BINARY', $tesseractDirectory.DIRECTORY_SEPARATOR.'tesseract.exe'),
+    'tessdata_directory' => env(
+        'TESSDATA_DIRECTORY',
+        is_dir($tesseractDirectory.DIRECTORY_SEPARATOR.'tessdata')
+            ? $tesseractDirectory.DIRECTORY_SEPARATOR.'tessdata'
+            : base_path('tessdata'),
     ),
-    'tessdata_directory' => env('TESSDATA_DIRECTORY', base_path('tessdata')),
     'tesseract_languages' => env('TESSERACT_LANGUAGES', 'eng'),
     'tesseract_page_segmentation_mode' => (int) env('TESSERACT_PSM', 6),
     'default_popular_models' => [
