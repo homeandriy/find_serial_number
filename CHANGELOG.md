@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.12.5 - 2026-08-21
+
+### Fixed
+
+- Show the Serial Vision splash window immediately while Electron and the local Laravel server start.
+- Embed the splash logo in the window so it loads reliably on Windows.
+
+
 ## v0.12.4 - 2026-08-21
 
 ### Changed

@@ -1,4 +1,4 @@
-param(
+﻿param(
     [string] $ProjectDirectory = (Split-Path -Parent $MyInvocation.MyCommand.Path)
 )
 
@@ -38,30 +38,42 @@ app.setPath('userData', path.join(app.getPath('appData'), 'obladnannia-ta-dani')
     [IO.File]::WriteAllText($mainEntrypoint, $mainSource, [Text.UTF8Encoding]::new($false))
 }
 
-$splashMarker = '// Serial Vision startup splash'
+$splashMarker = '// Serial Vision startup splash v3'
+$legacySplashMarker = '// Serial Vision startup splash'
+
+if (-not $mainSource.Contains($splashMarker) -and $mainSource.Contains($legacySplashMarker)) {
+    $legacyStart = $mainSource.IndexOf($legacySplashMarker)
+    $legacyEnd = $mainSource.IndexOf('/**', $legacyStart)
+
+    if ($legacyStart -lt 0 -or $legacyEnd -lt 0) {
+        throw 'Legacy Serial Vision splash patch could not be replaced safely.'
+    }
+
+    $mainSource = $mainSource.Substring(0, $legacyStart) + $mainSource.Substring($legacyEnd)
+    $mainSource = $mainSource.Replace("import { app, BrowserWindow, nativeImage } from 'electron';", "import { app } from 'electron';")
+    $mainSource = $mainSource.Replace("import { app, BrowserWindow } from 'electron';", "import { app } from 'electron';")
+    $mainSource = [regex]::Replace($mainSource, "(?m)^import \{ pathToFileURL \} from 'url';\r?\n", '')
+}
 
 if (-not $mainSource.Contains($splashMarker)) {
-    $mainSource = $mainSource.Replace("import { app } from 'electron';", "import { app, BrowserWindow } from 'electron';")
+    $mainSource = $mainSource.Replace("import { app } from 'electron';", "import { app, BrowserWindow, nativeImage } from 'electron';")
     $mainSource = $mainSource.Replace("import path from 'path';", "import path from 'path';`r`nimport { pathToFileURL } from 'url';")
 
-    if (-not $mainSource.Contains("import { app, BrowserWindow } from 'electron';")) {
+    if (-not $mainSource.Contains("import { app, BrowserWindow, nativeImage } from 'electron';")) {
         throw 'Unexpected NativePHP Electron main template; BrowserWindow import was not patched.'
     }
 
     $splash = @"
 
-// Serial Vision startup splash
+// Serial Vision startup splash v3
 let splashWindow = null;
 
 app.whenReady().then(() => {
-    if (process.env.NODE_ENV !== 'production') {
-        return;
-    }
 
     splashWindow = new BrowserWindow({
         width: 540,
         height: 320,
-        show: false,
+        show: true,
         resizable: false,
         minimizable: false,
         maximizable: false,
@@ -72,9 +84,10 @@ app.whenReady().then(() => {
         backgroundColor: '#0f172a',
     });
 
-    const splashHtml = '<!doctype html><html lang="uk"><head><meta charset="utf-8"><style>body{margin:0;background:radial-gradient(circle at top left,#1e5b8e,#0f172a 62%);color:#f8fafc;font-family:Segoe UI,Arial,sans-serif;display:grid;place-items:center;height:100vh}.card{text-align:center}.logo{width:88px;height:88px;object-fit:contain;margin-bottom:22px}.title{font-size:28px;font-weight:700}.caption{margin-top:9px;color:#bfdbfe;font-size:16px}.loader{width:190px;height:5px;border-radius:999px;background:#243449;margin:30px auto 0;overflow:hidden}.loader:after{content:"";display:block;width:45%;height:100%;border-radius:inherit;background:#38bdf8;animation:loading 1.25s ease-in-out infinite}@keyframes loading{0%{transform:translateX(-110%)}100%{transform:translateX(330%)}}</style></head><body><div class="card"><img class="logo" src="' + pathToFileURL(defaultIcon).href + '" alt="Serial Vision"><div class="title">Обладнання та дані</div><div class="caption">Запуск програми…</div><div class="loader"></div></div></body></html>';
+    const splashIcon = nativeImage.createFromPath(defaultIcon).toDataURL();
+    const splashHtml = '<!doctype html><html lang="uk"><head><meta charset="utf-8"><style>body{margin:0;background:radial-gradient(circle at top left,#1e5b8e,#0f172a 62%);color:#f8fafc;font-family:Segoe UI,Arial,sans-serif;display:grid;place-items:center;height:100vh}.card{text-align:center}.logo{width:88px;height:88px;object-fit:contain;margin-bottom:22px}.title{font-size:28px;font-weight:700}.caption{margin-top:9px;color:#bfdbfe;font-size:16px}.loader{width:190px;height:5px;border-radius:999px;background:#243449;margin:30px auto 0;overflow:hidden}.loader:after{content:"";display:block;width:45%;height:100%;border-radius:inherit;background:#38bdf8;animation:loading 1.25s ease-in-out infinite}@keyframes loading{0%{transform:translateX(-110%)}100%{transform:translateX(330%)}}</style></head><body><div class="card"><img class="logo" src="' + splashIcon + '" alt="Serial Vision"><div class="title">Обладнання та дані</div><div class="caption">Запуск програми…</div><div class="loader"></div></div></body></html>';
     splashWindow.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(splashHtml));
-    splashWindow.once('ready-to-show', () => splashWindow?.show());
+    NativePHP.bootstrap(app, defaultIcon, phpBinary, certificate, appPath);
 });
 
 app.on('browser-window-created', (_, window) => {
@@ -82,9 +95,13 @@ app.on('browser-window-created', (_, window) => {
         return;
     }
 
-    window.once('ready-to-show', () => {
+    window.webContents.on('did-navigate', (_, url) => {
+        if (!url.startsWith('http://127.0.0.1') && !url.startsWith('http://localhost')) {
+            return;
+        }
+
         if (!splashWindow?.isDestroyed()) {
-            splashWindow.destroy();
+            splashWindow.close();
         }
 
         splashWindow = null;
@@ -92,6 +109,13 @@ app.on('browser-window-created', (_, window) => {
 });
 "@
     $mainSource = $mainSource.Replace("const appPath = path.join(buildPath, 'app');", "const appPath = path.join(buildPath, 'app');" + $splash)
+    $bootstrap = @"
+/**
+ * Turn on the lights for the NativePHP app.
+ */
+NativePHP.bootstrap(app, defaultIcon, phpBinary, certificate, appPath);
+"@
+    $mainSource = $mainSource.Replace($bootstrap, '')
     [IO.File]::WriteAllText($mainEntrypoint, $mainSource, [Text.UTF8Encoding]::new($false))
 }
 
