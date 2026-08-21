@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.12.2 - 2026-08-21
+
+### Fixed
+
+- Rebuild the verified Windows installer after the production startup, localization and update-installation fixes.
+
 ## v0.12.1 - 2026-08-21
 
 ### Fixed
