@@ -21,6 +21,12 @@ final class StartupLog
 
     public function path(): string
     {
+        $nativeUserDataPath = env('NATIVEPHP_USER_DATA_PATH');
+
+        if (is_string($nativeUserDataPath) && trim($nativeUserDataPath) !== '') {
+            return rtrim($nativeUserDataPath, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'startup.log';
+        }
+
         return storage_path('logs/startup.log');
     }
 

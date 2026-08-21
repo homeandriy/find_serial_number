@@ -25,7 +25,7 @@
     <label class="setup-agreement"><input id="setup-accepted" type="checkbox"> Я прочитав(-ла) та погоджуюся з умовами.</label>
     <label>Папка з зображеннями<div class="setup-directory"><input id="setup-image-directory" type="text" readonly value="{{ $imageDirectory }}" placeholder="Оберіть папку"><button id="choose-setup-directory" class="tab-button" type="button">Вибрати</button></div></label>
     <p id="setup-message" class="agent-message"></p>
-    <button id="complete-setup" class="primary-button" type="button" disabled aria-disabled="true">Завершити та відкрити програму</button>
+    <div class="about-dialog-actions"><button id="skip-setup" class="tab-button" type="button">Налаштувати пізніше</button><button id="complete-setup" class="primary-button" type="button" disabled aria-disabled="true">Завершити та відкрити програму</button></div>
   </div>
 </section>
 <script>
@@ -37,16 +37,19 @@
     const directory = setup.querySelector('#setup-image-directory');
     const choose = setup.querySelector('#choose-setup-directory');
     const complete = setup.querySelector('#complete-setup');
+    const skip = setup.querySelector('#skip-setup');
     const message = setup.querySelector('#setup-message');
     const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
     const isDevelopment = @json(app()->environment('local'));
     const sync = () => { const canComplete = accepted.checked && directory.value.trim().length > 0; complete.disabled = !canComplete; complete.setAttribute('aria-disabled', String(!canComplete)); };
     const post = async (url, data = {}) => {
-        const response = await fetch(url, {
+        const controller = new AbortController();`n        const timeout = window.setTimeout(() => controller.abort(), 12000);`n        const response = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': csrf },
             body: JSON.stringify(data),
+            signal: controller.signal,
         });
+        window.clearTimeout(timeout);
         const payload = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(payload.message || 'Операцію не вдалося виконати.');
         return payload;
@@ -69,18 +72,25 @@
             sync();
         }
     }, true);
-    complete.addEventListener('click', async (event) => {
+    skip.addEventListener('click', async () => {
+        skip.disabled = true;
+        message.textContent = 'Відкриваємо програму…';
+        try {
+            await post('/setup', { accepted: true, path: directory.value });
+            setup.remove();
+        } catch (error) {
+            message.textContent = error.message;
+            skip.disabled = false;
+        }
+    }, true);    complete.addEventListener('click', async (event) => {
         event.preventDefault();
         event.stopImmediatePropagation();
         complete.disabled = true;
         message.textContent = 'Зберігаємо налаштування…';
         try {
             await post('/setup', { accepted: accepted.checked, path: directory.value });
-            if (isDevelopment) {
-                setup.remove();
-            } else {
-                window.location.reload();
-            }
+            setup.remove();
+            if (!isDevelopment) window.location.reload();
         } catch (error) {
             message.textContent = error.message;
             sync();

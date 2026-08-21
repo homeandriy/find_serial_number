@@ -115,7 +115,7 @@ if (-not $phpRuntimeSource.Contains($startupMarker)) {
     $runtimeSnippet = @(
         "mkdirpSync(join(storagePath, 'framework', 'testing'));"
         $startupMarker
-        "const startupLogPath = join(storagePath, 'logs', 'startup.log');"
+        "const startupLogPath = join(app.getPath('userData'), 'startup.log');"
         'const logStartup = (message) => appendFileSync(startupLogPath, `[${new Date().toISOString()}] [electron] ${message}\n`);'
         "logStartup('Electron runtime initialized');"
     ) -join [Environment]::NewLine
@@ -129,6 +129,110 @@ if (-not $phpRuntimeSource.Contains($startupMarker)) {
     if (-not $phpRuntimeSource.Contains("logStartup('PHP server starting')")) {
         throw 'Unexpected NativePHP PHP server template.'
     }
+
+    [IO.File]::WriteAllText($phpRuntime, $phpRuntimeSource, [Text.UTF8Encoding]::new($false))
+}
+$startupLogLocationMarker = '// Serial Vision startup log path v1'
+
+if (-not $phpRuntimeSource.Contains($startupLogLocationMarker)) {
+    $legacyStartupLogPath = "const startupLogPath = join(storagePath, 'logs', 'startup.log');"
+    $stableStartupLogPath = "const startupLogPath = join(app.getPath('userData'), 'startup.log');"
+
+    if ($phpRuntimeSource.Contains($legacyStartupLogPath)) {
+        $phpRuntimeSource = $phpRuntimeSource.Replace($legacyStartupLogPath, $startupLogLocationMarker + [Environment]::NewLine + $stableStartupLogPath)
+    } elseif ($phpRuntimeSource.Contains($stableStartupLogPath)) {
+        $phpRuntimeSource = $phpRuntimeSource.Replace($stableStartupLogPath, $startupLogLocationMarker + [Environment]::NewLine + $stableStartupLogPath)
+    } else {
+        throw 'NativePHP startup log path template was not found.'
+    }
+
+    [IO.File]::WriteAllText($phpRuntime, $phpRuntimeSource, [Text.UTF8Encoding]::new($false))
+}
+$diagnosticMarker = '// Serial Vision startup diagnostics v1'
+
+if (-not $phpRuntimeSource.Contains($diagnosticMarker)) {
+    if (-not $phpRuntimeSource.Contains($startupMarker)) {
+        throw 'NativePHP startup base patch was not applied.'
+    }
+
+    $newline = [Environment]::NewLine
+    $phpRuntimeSource = $phpRuntimeSource.Replace(
+        "const command = ['artisan', 'native:php-ini'];",
+        ($diagnosticMarker + $newline + "        logStartup('NativePHP PHP INI command started');" + $newline + "        const command = ['artisan', 'native:php-ini'];")
+    )
+    $phpRuntimeSource = [regex]::Replace(
+        $phpRuntimeSource,
+        'return yield promisify\(execFile\)\(state\.php, command, phpOptions\);',
+        ("const result = yield promisify(execFile)(state.php, command, phpOptions);" + $newline + "        logStartup('NativePHP PHP INI command finished');" + $newline + '        return result;'),
+        1
+    )
+    $phpRuntimeSource = $phpRuntimeSource.Replace(
+        "const command = ['artisan', 'native:config'];",
+        ("logStartup('NativePHP config command started');" + $newline + "        const command = ['artisan', 'native:config'];")
+    )
+    $phpRuntimeSource = [regex]::Replace(
+        $phpRuntimeSource,
+        'return yield promisify\(execFile\)\(state\.php, command, phpOptions\);',
+        ("const result = yield promisify(execFile)(state.php, command, phpOptions);" + $newline + "        logStartup('NativePHP config command finished');" + $newline + '        return result;'),
+        1
+    )
+    $phpRuntimeSource = $phpRuntimeSource.Replace(
+        "console.log('Starting PHP server...', `${state.php} artisan serve`, appPath, phpIniSettings);",
+        ("logStartup('NativePHP serve application started');" + $newline + "        console.log('Starting PHP server...', `${state.php} artisan serve`, appPath, phpIniSettings);")
+    )
+    $phpRuntimeSource = $phpRuntimeSource.Replace(
+        'ensureAppFoldersAreAvailable();',
+        ("logStartup('NativePHP storage preparation started');" + $newline + '        ensureAppFoldersAreAvailable();' + $newline + "        logStartup('NativePHP storage preparation finished');")
+    )
+    $phpRuntimeSource = $phpRuntimeSource.Replace(
+        "logStartup('PHP server starting');",
+        ("logStartup('PHP server preparation started');" + $newline + "    logStartup('PHP server starting');")
+    )
+    $phpRuntimeSource = $phpRuntimeSource.Replace(
+        'const phpPort = yield getPhpPort();',
+        ("logStartup('PHP port selection started');" + $newline + '    const phpPort = yield getPhpPort();' + $newline + "        logStartup('PHP port selection finished');")
+    )
+    $phpRuntimeSource = $phpRuntimeSource.Replace(
+        'const phpServer = callPhp([''-S'', `127.0.0.1:${phpPort}`, serverPath], {',
+        ("logStartup('PHP server process started');" + $newline + '        const phpServer = callPhp([''-S'', `127.0.0.1:${phpPort}`, serverPath], {')
+    )
+    $phpRuntimeSource = $phpRuntimeSource.Replace(
+        "console.log('PHP Server started on port: ', port);",
+        ("console.log('PHP Server started on port: ', port);" + $newline + "                    logStartup('PHP server is listening');")
+    )
+
+    if (-not $phpRuntimeSource.Contains("logStartup('PHP server is listening')")) {
+        throw 'NativePHP diagnostics patch did not apply.'
+    }
+
+    [IO.File]::WriteAllText($phpRuntime, $phpRuntimeSource, [Text.UTF8Encoding]::new($false))
+}
+$diagnosticCorrectionMarker = '// Serial Vision startup diagnostics v2'
+
+if (-not $phpRuntimeSource.Contains($diagnosticCorrectionMarker)) {
+    $newline = [Environment]::NewLine
+    $phpRuntimeSource = [regex]::Replace(
+        $phpRuntimeSource,
+        "(?s)(logStartup\('NativePHP config command started'\);.*?logStartup\(')NativePHP PHP INI command finished('\);)",
+        '$1NativePHP config command finished$2',
+        1
+    )
+    $phpRuntimeSource = [regex]::Replace(
+        $phpRuntimeSource,
+        "(?m)^\s*logStartup\('PHP server preparation started'\);\r?\n\s*logStartup\('PHP server starting'\);\r?\n\s*logStartup\('PHP server preparation started'\);\r?\n\s*logStartup\('PHP server starting'\);",
+        ("        logStartup('PHP server preparation started');" + $newline + "        logStartup('PHP server starting');"),
+        1
+    )
+    $phpRuntimeSource = [regex]::Replace(
+        $phpRuntimeSource,
+        "(?m)^(\s*)logStartup\('NativePHP migration finished'\);\r?\n\s*logStartup\('NativePHP migration finished'\);",
+        '$1logStartup(''NativePHP migration finished'');',
+        1
+    )
+    $phpRuntimeSource = $phpRuntimeSource.Replace(
+        '// Serial Vision startup diagnostics v1',
+        '// Serial Vision startup diagnostics v1' + $newline + $diagnosticCorrectionMarker
+    )
 
     [IO.File]::WriteAllText($phpRuntime, $phpRuntimeSource, [Text.UTF8Encoding]::new($false))
 }

@@ -38,12 +38,17 @@ class NativeAppServiceProvider implements ProvidesPhpIni
             )->label('Help'),
         );
 
+        $startupLog->mark('Розширений лог запуску: меню готове; відкривається головне вікно');
         Window::open()->width(1920)->height(1080);
+        $startupLog->mark('Головне вікно передано NativePHP');
 
 
+        $startupLog->mark('Ініціалізація локального стану розпочата');
         config()->set('serial-number.launch_count', app(ApplicationLaunchTracker::class)->registerLaunch());
         $startupLog->mark('Локальний стан запуску готовий');
 
+
+        $startupLog->mark('Перевірка оновлень планується у фоновому режимі');
 
         if (app()->environment('production') && config('nativephp.updater.enabled')) {
             Event::listen(CheckForUpdates::class, static fn (): mixed => AutoUpdater::checkForUpdates());

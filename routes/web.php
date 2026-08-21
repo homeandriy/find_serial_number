@@ -7,14 +7,14 @@ use App\Services\ImageCatalog;
 use App\Services\StartupLog;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function (ImageCatalog $catalog, AiAgentRepository $agents, StartupLog $startupLog) {
+Route::get('/', function (ImageCatalog $catalog, AiAgentRepository $agents, StartupLog $startupLog, \App\Services\ImageDirectorySettings $settings) {
     $startupLog->mark('Головна сторінка готується без синхронного сканування фото');
 
     return view('serial-number.index', [
         'imageDirectory' => $catalog->configuredDirectory(),
         'agents' => $agents->all(),
         'appVersion' => trim((string) file_get_contents(base_path('VERSION'))),
-        'setupRequired' => app()->environment('local') || (int) config('serial-number.launch_count', 1) === 1,
+        'setupRequired' => $settings->setupRequired(),
     ]);
 });
 

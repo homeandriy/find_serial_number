@@ -16,7 +16,18 @@ if (-not (Test-Path -LiteralPath (Join-Path $ocrDirectory 'tesseract.exe'))) {
     Expand-Archive -LiteralPath $ocrArchive -DestinationPath $ocrDirectory -Force
 }
 & (Join-Path $projectDirectory 'prepare-nativephp-electron.ps1') -ProjectDirectory $projectDirectory
+$licenseSource = Join-Path $projectDirectory 'LICENSE.txt'
+$nsisLicense = Join-Path $projectDirectory 'LICENSE.nsis.txt'
+
+if (-not (Test-Path -LiteralPath $licenseSource)) {
+    throw "License source was not found: $licenseSource"
+}
+
+$licenseText = [IO.File]::ReadAllText($licenseSource, [Text.UTF8Encoding]::new($false))
+$windows1251 = [Text.Encoding]::GetEncoding(1251)
+[IO.File]::WriteAllText($nsisLicense, $licenseText, $windows1251)
 $builderContent = [IO.File]::ReadAllText($builder)
+$builderContent = $builderContent.Replace("license: join(process.env.APP_PATH, 'LICENSE.txt'),", "license: join(process.env.APP_PATH, 'LICENSE.nsis.txt'),")
 $versionToken = '$' + '{version}'
 $extensionToken = '$' + '{ext}'
 $builderContent = $builderContent.Replace('        signAndEditExecutable: false,' + [Environment]::NewLine, '')
@@ -24,7 +35,7 @@ if (-not $builderContent.Contains("icon: join(process.env.APP_PATH, 'public', 'i
     $builderContent = $builderContent.Replace('    win: {', "    win: {" + [Environment]::NewLine + "        icon: join(process.env.APP_PATH, 'public', 'icon.ico'),")
 }
 if (-not $builderContent.Contains('Serial Vision Installer version')) {
-    $nsisConfig = '    nsis: {' + [Environment]::NewLine + '        oneClick: false,' + [Environment]::NewLine + '        allowToChangeInstallationDirectory: true,' + [Environment]::NewLine + '        runAfterFinish: true,' + [Environment]::NewLine + "        license: join(process.env.APP_PATH, 'LICENSE.txt'),"
+    $nsisConfig = '    nsis: {' + [Environment]::NewLine + '        oneClick: false,' + [Environment]::NewLine + '        allowToChangeInstallationDirectory: true,' + [Environment]::NewLine + '        runAfterFinish: true,' + [Environment]::NewLine + "        license: join(process.env.APP_PATH, 'LICENSE.nsis.txt'),"
     $builderContent = $builderContent.Replace('    nsis: {', $nsisConfig)
     $oldArtifact = "artifactName: appName + '-$versionToken-setup.$extensionToken',"
     $newArtifact = "artifactName: 'Serial Vision Installer version $versionToken.$extensionToken',"

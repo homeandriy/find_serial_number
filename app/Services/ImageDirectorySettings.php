@@ -9,7 +9,7 @@ final class ImageDirectorySettings
     public function path(): string { return $this->hasCustomPath() ? trim(Storage::disk('local')->get(self::FILE)) : (string) config('serial-number.image_directory'); }
     public function hasCustomPath(): bool { return Storage::disk('local')->exists(self::FILE) && trim(Storage::disk('local')->get(self::FILE)) !== ''; }
     public function hasAcceptedAgreement(): bool { return Storage::disk('local')->exists(self::AGREEMENT_FILE); }
-    public function setupRequired(): bool { return ! $this->hasCustomPath() || ! $this->hasAcceptedAgreement(); }
+    public function setupRequired(): bool { return ! $this->hasAcceptedAgreement(); }
     public function update(string $path): string
     {
         $path = trim($path);

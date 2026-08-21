@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.12.3 - 2026-08-21
+
+### Fixed
+
+- Prevent the first-run setup dialog from blocking the application and allow setup to be postponed.
+- Record detailed NativePHP startup timing for production diagnostics.
+- Generate a Windows-1251 NSIS license copy so Ukrainian text displays correctly in the installer.
+
 ## v0.12.2 - 2026-08-21
 
 ### Fixed
