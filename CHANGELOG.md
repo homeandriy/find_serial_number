@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.12.6 - 2026-08-21
+
+### Changed
+
+- Add repeatable JavaScript formatting and syntax checks.
+
+### Fixed
+
+- Make manual update checks finish with a result or a clear timeout message.
+- Log NativePHP updater events for production diagnostics.
+- Resolve the bundled Tesseract runtime through the NativePHP production extras path.
+
 ## v0.12.5 - 2026-08-21
 
 ### Fixed
