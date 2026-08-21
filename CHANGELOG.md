@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.12.4 - 2026-08-21
+
+### Changed
+
+- Update the GitHub Actions checkout, Node setup and release-publishing actions to Node 24-compatible versions.
+
 ## v0.12.3 - 2026-08-21
 
 ### Fixed

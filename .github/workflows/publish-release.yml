@@ -15,7 +15,7 @@ jobs:
 
     steps:
       - name: Check out release tag
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up PHP 8.5
         uses: shivammathur/setup-php@v2
@@ -35,7 +35,7 @@ jobs:
           php artisan optimize --no-interaction
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
@@ -67,7 +67,7 @@ jobs:
           $notes = "## Обладнання та дані v$version`r`n`r`n" + $match.Groups[1].Value.Trim()
           [System.IO.File]::WriteAllText('nativephp/electron/dist/RELEASE_NOTES.md', $notes, [System.Text.UTF8Encoding]::new($false))
       - name: Publish GitHub Release assets
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           body_path: nativephp/electron/dist/RELEASE_NOTES.md
           files: |
