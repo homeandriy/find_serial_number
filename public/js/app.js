@@ -638,6 +638,28 @@ document.querySelector('#about-external-homeandriy')?.addEventListener('click', 
 const registerAboutNativeEvent = () => window.Native?.on?.('App\\Events\\ShowAboutDialog', showAboutDialog);
 window.addEventListener('native:init', registerAboutNativeEvent, { once: true });
 registerAboutNativeEvent();
+// The Help menu opens the update status dialog and the NativePHP updater reports its result here.
+const updateDialog = document.querySelector('#update-dialog');
+const updateDialogMessage = document.querySelector('#update-dialog-message');
+const showUpdateDialog = message => {
+    if (updateDialogMessage) updateDialogMessage.textContent = message;
+    if (updateDialog && !updateDialog.open) updateDialog.showModal();
+};
+const updateVersion = payload => payload?.version ? ' v' + payload.version : '';
+let manualUpdateCheck = false;
+document.querySelector('#update-close')?.addEventListener('click', () => updateDialog?.close());
+const registerUpdateNativeEvents = () => {
+    window.Native?.on?.('App\\Events\\CheckForUpdates', () => {
+        manualUpdateCheck = true;
+        showUpdateDialog(document.body.dataset.environment === 'production' ? 'Перевіряємо наявність нової версії…' : 'Перевірка оновлень доступна у встановленій версії програми.');
+    });
+    window.Native?.on?.('Native\\Desktop\\Events\\AutoUpdater\\CheckingForUpdate', () => { if (manualUpdateCheck) showUpdateDialog('Перевіряємо наявність нової версії…'); });
+    window.Native?.on?.('Native\\Desktop\\Events\\AutoUpdater\\UpdateNotAvailable', () => { if (manualUpdateCheck) showUpdateDialog('У вас уже встановлена актуальна версія.'); manualUpdateCheck = false; });
+    window.Native?.on?.('Native\\Desktop\\Events\\AutoUpdater\\UpdateAvailable', payload => { if (manualUpdateCheck) showUpdateDialog('Доступне оновлення' + updateVersion(payload) + '. Завантажуємо та встановлюємо його…'); manualUpdateCheck = false; });
+    window.Native?.on?.('Native\\Desktop\\Events\\AutoUpdater\\Error', payload => { if (manualUpdateCheck) showUpdateDialog('Не вдалося перевірити оновлення. ' + (payload?.message || 'Перевірте підключення до інтернету та повторіть спробу.')); manualUpdateCheck = false; });
+};
+window.addEventListener('native:init', registerUpdateNativeEvents, { once: true });
+registerUpdateNativeEvents();
 
 // Statistics are loaded only after the user opens this tab.
 const statisticsTabButton = document.createElement('button');

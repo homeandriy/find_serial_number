@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Events\CheckForUpdates;
 use App\Events\ShowAboutDialog;
 use App\Services\ApplicationLaunchTracker;
 use Illuminate\Support\Facades\Artisan;
@@ -28,6 +29,7 @@ class NativeAppServiceProvider implements ProvidesPhpIni
             Menu::window(),
             Menu::make(
                 Menu::label('Про програму')->event(ShowAboutDialog::class),
+                Menu::label('Перевірити оновлення')->event(CheckForUpdates::class),
             )->label('Help'),
         );
 
@@ -40,6 +42,7 @@ class NativeAppServiceProvider implements ProvidesPhpIni
         config()->set('serial-number.launch_count', app(ApplicationLaunchTracker::class)->registerLaunch());
 
         if (app()->environment('production') && config('nativephp.updater.enabled')) {
+            Event::listen(CheckForUpdates::class, static fn (): mixed => AutoUpdater::checkForUpdates());
             Event::listen(UpdateAvailable::class, static fn (): mixed => AutoUpdater::downloadUpdate());
             Event::listen(UpdateDownloaded::class, static fn (): mixed => AutoUpdater::quitAndInstall());
             AutoUpdater::checkForUpdates();
