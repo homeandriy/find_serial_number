@@ -24,8 +24,9 @@ if (-not (Test-Path -LiteralPath $licenseSource)) {
 }
 
 $licenseText = [IO.File]::ReadAllText($licenseSource, [Text.UTF8Encoding]::new($false))
-$windows1251 = [Text.Encoding]::GetEncoding(1251)
-[IO.File]::WriteAllText($nsisLicense, $licenseText, $windows1251)
+# NSIS Unicode installers expect the license file in UTF-8. A BOM makes the
+# encoding explicit for the installer UI and prevents Cyrillic mojibake.
+[IO.File]::WriteAllText($nsisLicense, $licenseText, [Text.UTF8Encoding]::new($true))
 $builderContent = [IO.File]::ReadAllText($builder)
 $builderContent = $builderContent.Replace("license: join(process.env.APP_PATH, 'LICENSE.txt'),", "license: join(process.env.APP_PATH, 'LICENSE.nsis.txt'),")
 $versionToken = '$' + '{version}'
