@@ -45,6 +45,30 @@ final class ImageCatalog
         return $images;
     }
 
+    /** @return array{images: list<array{id: string, name: string, size: int, uploaded_at: string, uploaded_on: string, uploaded_label: string}>, total: int, page: int, per_page: int, has_more: bool} */
+    public function page(int $page, int $perPage): array
+    {
+        $startedAt = hrtime(true);
+        $page = max(1, $page);
+        $perPage = min(100, max(1, $perPage));
+        $images = $this->all();
+        $total = count($images);
+        $offset = ($page - 1) * $perPage;
+
+        app(StartupLog::class)->mark(sprintf(
+            'Каталог фото проскановано: %d файлів за %.1f ms',
+            $total,
+            (hrtime(true) - $startedAt) / 1_000_000,
+        ));
+
+        return [
+            'images' => array_slice($images, $offset, $perPage),
+            'total' => $total,
+            'page' => $page,
+            'per_page' => $perPage,
+            'has_more' => $offset + $perPage < $total,
+        ];
+    }
     public function pathFor(string $imageId): string
     {
         $directory = $this->directory();

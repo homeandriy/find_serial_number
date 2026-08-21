@@ -580,11 +580,17 @@ unifiedOcrMenu.addEventListener('click', event => {
 });
 // Keep the currently open section visible in the lower application status line.
 const activeTabName = qs('#active-tab-name');
+const updateActiveTabTitle = tabName => {
+    activeTabName.textContent = tabName;
+    document.title = tabName + ' — Обладнання та дані';
+    void request('/window-title', 'POST', { tab: tabName }).catch(() => {});
+};
+updateActiveTabTitle(activeTabName.textContent.trim());
 document.querySelector('.tabs')?.addEventListener('click', event => {
     const button = event.target.closest('.tab-button');
     if (!button || !button.parentElement?.classList.contains('tabs')) return;
 
-    activeTabName.textContent = button.textContent.trim();
+    updateActiveTabTitle(button.textContent.trim());
 });
 // Ten most-used models speed up repeated equipment entry.
 const popularModelsContainer = document.createElement('div');
@@ -758,3 +764,87 @@ statisticsTab.querySelectorAll('[data-statistics-group]').forEach(button => {
 statisticsMonth.addEventListener('change', () => {
     if (statisticsGroupBy === 'month') loadStatistics();
 });
+
+// Keep the footer after tabs that are added dynamically at startup.
+const appVersionFooter = document.querySelector('.app-version');
+if (appVersionFooter) document.querySelector('.app-shell')?.append(appVersionFooter);
+
+// The image index is loaded only after the first screen is visible.
+const imageCatalogElement = qs('#image-catalog');
+const imageCountElement = qs('#image-count');
+const imagePaginationElement = qs('#image-pagination');
+let imageCatalogPage = 1;
+
+const renderImageCatalog = images => {
+    if (!images.length) {
+        imageCatalogElement.innerHTML = '<p class="empty-state">У папці немає зображень. Додайте JPG, PNG, WEBP, TIFF або BMP до вказаної папки.</p>';
+        return;
+    }
+
+    const groups = images.reduce((result, image) => {
+        (result[image.uploaded_on] ||= []).push(image);
+        return result;
+    }, {});
+
+    imageCatalogElement.innerHTML = Object.values(groups).map(imagesForDay => '<section class="image-day"><div class="image-day-divider"><span>' + escapeHtml(imagesForDay[0].uploaded_label) + '</span></div><div class="image-grid">' + imagesForDay.map(image => '<article class="image-card" data-image-id="' + image.id + '" data-image-name="' + escapeHtml(image.name) + '"><button class="image-preview" type="button"><img src="/images/' + image.id + '" alt="' + escapeHtml(image.name) + '" loading="lazy"></button><div class="image-card-footer"><span title="' + escapeHtml(image.name) + '">' + escapeHtml(image.name) + '</span><button class="image-card-menu" type="button" aria-label="Меню фото">⋮</button></div></article>').join('') + '</div></section>').join('');
+};
+
+const renderImagePagination = data => {
+    imagePaginationElement.innerHTML = '<button class="tab-button" type="button" data-image-page="' + (data.page - 1) + '" ' + (data.page === 1 ? 'disabled' : '') + '>Попередня</button><span>Показано ' + data.images.length + ' з ' + data.total + '</span><button class="tab-button" type="button" data-image-page="' + (data.page + 1) + '" ' + (!data.has_more ? 'disabled' : '') + '>Наступна</button>';
+};
+
+const loadImageCatalog = async page => {
+    imageCatalogElement.innerHTML = '<p class="empty-state">Завантажуємо зображення…</p>';
+
+    try {
+        const data = await request('/image-catalog?page=' + page + '&per_page=48');
+        imageCatalogPage = data.page;
+        imageCountElement.textContent = data.total;
+        renderImageCatalog(data.images);
+        renderImagePagination(data);
+    } catch (error) {
+        imageCatalogElement.innerHTML = '<p class="empty-state">' + escapeHtml(error.message) + '</p>';
+    }
+};
+
+imageCatalogElement?.addEventListener('click', async event => {
+    const menuButton = event.target.closest('.image-card-menu');
+    if (menuButton) {
+        event.preventDefault();
+        event.stopPropagation();
+        const card = menuButton.closest('.image-card');
+        imageActionMenu.dataset.imageId = card.dataset.imageId;
+        imageActionMenu.hidden = false;
+        imageActionMenu.style.left = Math.min(event.clientX, window.innerWidth - 230) + 'px';
+        imageActionMenu.style.top = Math.min(event.clientY, window.innerHeight - 170) + 'px';
+        return;
+    }
+
+    const card = event.target.closest('.image-card');
+    if (!card) return;
+
+    document.querySelectorAll('.image-card.active').forEach(item => item.classList.remove('active'));
+    card.classList.add('active');
+    selectedImageId = card.dataset.imageId;
+    selectedImage.textContent = card.dataset.imageName;
+    status.textContent = 'Локальне розпізнавання…';
+    localResult.value = 'Будь ласка, зачекайте.';
+    updateAiState();
+
+    try {
+        const payload = await request('/images/' + selectedImageId + '/recognize', 'POST');
+        localResult.value = payload.text || 'Текст не знайдено.';
+        status.textContent = 'Локальний OCR готовий';
+    } catch (error) {
+        localResult.value = error.message;
+        status.textContent = 'Помилка OCR';
+    }
+});
+
+imagePaginationElement?.addEventListener('click', event => {
+    const page = Number(event.target.closest('[data-image-page]')?.dataset.imagePage);
+    if (Number.isInteger(page) && page > 0 && page !== imageCatalogPage) loadImageCatalog(page);
+});
+
+void request('/startup/renderer-ready', 'POST').catch(() => {});
+void loadImageCatalog(1);

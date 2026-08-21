@@ -9,15 +9,33 @@ use App\Services\AiVisionRecognizer;
 use App\Services\ImageCatalog;
 use App\Services\ImageDirectorySettings;
 use App\Services\TesseractRecognizer;
+use App\Services\StartupLog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Native\Desktop\Dialog;
 use Native\Desktop\Facades\Shell;
+use Native\Desktop\Facades\Window;
 use RuntimeException;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 final class ImageRecognitionController extends Controller
 {
+    public function catalog(Request $request, ImageCatalog $catalog): JsonResponse
+    {
+        $data = $request->validate([
+            'page' => ['nullable', 'integer', 'min:1'],
+            'per_page' => ['nullable', 'integer', 'min:12', 'max:100'],
+        ]);
+
+        return response()->json($catalog->page((int) ($data['page'] ?? 1), (int) ($data['per_page'] ?? 48)));
+    }
+
+    public function markRendererReady(StartupLog $startupLog): JsonResponse
+    {
+        $startupLog->mark('Перший інтерфейс відображено');
+
+        return response()->json(status: 204);
+    }
     public function image(string $image, ImageCatalog $catalog): BinaryFileResponse
     {
         try { return response()->file($catalog->pathFor($image)); } catch (RuntimeException) { abort(404); }
@@ -89,6 +107,16 @@ final class ImageRecognitionController extends Controller
         }
     }
     public function openWebsite(): JsonResponse { Shell::openExternal('https://webbooks.com.ua'); return response()->json(status: 204); }
+    public function updateWindowTitle(Request $request): JsonResponse
+    {
+        $tab = $request->validate([
+            'tab' => ['required', 'string', 'in:Розпізнавання,Обладнання,Моделі,Статистика,Налаштування'],
+        ])['tab'];
+
+        Window::get('main')->title($tab . ' — Обладнання та дані');
+
+        return response()->json(status: 204);
+    }
     public function recognize(string $image, ImageCatalog $catalog, TesseractRecognizer $recognizer): JsonResponse
     {
         try { return response()->json(['text' => $recognizer->recognize($catalog->pathFor($image))]); } catch (RuntimeException $exception) { return response()->json(['message' => $exception->getMessage()], 422); }

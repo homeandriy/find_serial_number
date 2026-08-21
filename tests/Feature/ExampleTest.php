@@ -18,4 +18,20 @@ class ExampleTest extends TestCase
         $response->assertSee('id="update-dialog"', false);
         $response->assertSee('id="update-dialog-message"', false);
     }
+    public function test_image_catalog_is_loaded_separately(): void
+    {
+        $response = $this->get('/image-catalog?page=1&per_page=48');
+
+        $response->assertOk()->assertJsonStructure([
+            'images',
+            'total',
+            'page',
+            'per_page',
+            'has_more',
+        ]);
+    }
+    public function test_renderer_ready_marker_is_accepted(): void
+    {
+        $this->post('/startup/renderer-ready')->assertNoContent();
+    }
 }

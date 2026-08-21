@@ -82,3 +82,58 @@ app.on('browser-window-created', (_, window) => {
     $mainSource = $mainSource.Replace("const appPath = path.join(buildPath, 'app');", "const appPath = path.join(buildPath, 'app');" + $splash)
     [IO.File]::WriteAllText($mainEntrypoint, $mainSource, [Text.UTF8Encoding]::new($false))
 }
+
+$phpRuntime = Join-Path $ProjectDirectory 'vendor\nativephp\desktop\resources\electron\electron-plugin\dist\server\php.js'
+if (-not (Test-Path -LiteralPath $phpRuntime)) {
+    throw "NativePHP Electron PHP runtime was not found: $phpRuntime"
+}
+
+$phpRuntimeSource = [IO.File]::ReadAllText($phpRuntime)
+$startupMarker = '// Serial Vision optimized startup'
+
+if (-not $phpRuntimeSource.Contains($startupMarker)) {
+    $phpRuntimeSource = $phpRuntimeSource.Replace("import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'fs';", "import { appendFileSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'fs';")
+    $phpRuntimeSource = [regex]::Replace($phpRuntimeSource, 'function shouldOptimize\(\) \{\s*return process\.env\.NODE_ENV !== ''development'';\s*\}', "function shouldOptimize(store) {`n    return store.get('optimized_version') !== app.getVersion() && process.env.NODE_ENV !== 'development';`n}")
+    $phpRuntimeSource = $phpRuntimeSource.Replace('if (shouldOptimize()) {', 'if (shouldOptimize(store)) {')
+
+    if (-not $phpRuntimeSource.Contains('function shouldOptimize(store)')) {
+        throw 'Unexpected NativePHP optimize template.'
+    }
+
+    $runtimeSnippet = @(
+        "mkdirpSync(join(storagePath, 'framework', 'testing'));"
+        '// Serial Vision optimized startup'
+        "const startupLogPath = join(storagePath, 'logs', 'startup.log');"
+        'const logStartup = (message) => appendFileSync(startupLogPath, `[${new Date().toISOString()}] [electron] ${message}\n`);'
+        "logStartup('Electron runtime initialized');"
+    ) -join [Environment]::NewLine
+    $phpRuntimeSource = $phpRuntimeSource.Replace("mkdirpSync(join(storagePath, 'framework', 'testing'));", $runtimeSnippet)
+    $phpRuntimeSource = [regex]::Replace($phpRuntimeSource, "if \(shouldOptimize\(store\)\) \{\s*console\.log\('Caching view and routes\.\.\.'\);", "if (shouldOptimize(store)) {`r`n        logStartup('NativePHP optimize started');`r`n        console.log('Caching view and routes...');")
+    $phpRuntimeSource = $phpRuntimeSource.Replace("store.set('optimized_version', app.getVersion());", "store.set('optimized_version', app.getVersion());`n            logStartup('NativePHP optimize finished');")
+    $phpRuntimeSource = [regex]::Replace($phpRuntimeSource, "if \(shouldMigrateDatabase\(store\)\) \{\s*console\.log\('Migrating database\.\.\.'\);", "if (shouldMigrateDatabase(store)) {`r`n        logStartup('NativePHP migration started');`r`n        console.log('Migrating database...');")
+    $phpRuntimeSource = $phpRuntimeSource.Replace("store.set('migrated_version', app.getVersion());", "store.set('migrated_version', app.getVersion());`n            logStartup('NativePHP migration finished');")
+    $phpRuntimeSource = [regex]::Replace($phpRuntimeSource, "console\.log\('Starting PHP server\.\.\.'\);\s*const phpPort", "logStartup('PHP server starting');`r`n    console.log('Starting PHP server...');`r`n    const phpPort")
+
+    if (-not $phpRuntimeSource.Contains("logStartup('PHP server starting')")) {
+        throw 'Unexpected NativePHP PHP server template.'
+    }
+
+    [IO.File]::WriteAllText($phpRuntime, $phpRuntimeSource, [Text.UTF8Encoding]::new($false))
+}
+$updaterRuntime = Join-Path $ProjectDirectory 'vendor\nativephp\desktop\resources\electron\electron-plugin\dist\index.js'
+if (-not (Test-Path -LiteralPath $updaterRuntime)) {
+    throw "NativePHP Electron updater runtime was not found: $updaterRuntime"
+}
+
+$updaterRuntimeSource = [IO.File]::ReadAllText($updaterRuntime)
+$updaterMarker = '// Serial Vision updater starts after Laravel boot'
+
+if (-not $updaterRuntimeSource.Contains($updaterMarker)) {
+    $updaterRuntimeSource = $updaterRuntimeSource.Replace('            autoUpdater.checkForUpdatesAndNotify();', "            $updaterMarker")
+
+    if (-not $updaterRuntimeSource.Contains($updaterMarker)) {
+        throw 'Unexpected NativePHP Electron updater template.'
+    }
+
+    [IO.File]::WriteAllText($updaterRuntime, $updaterRuntimeSource, [Text.UTF8Encoding]::new($false))
+}

@@ -4,11 +4,13 @@ use App\Http\Controllers\DeviceController;
 use App\Http\Controllers\ImageRecognitionController;
 use App\Services\AiAgentRepository;
 use App\Services\ImageCatalog;
+use App\Services\StartupLog;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function (ImageCatalog $catalog, AiAgentRepository $agents) {
+Route::get('/', function (ImageCatalog $catalog, AiAgentRepository $agents, StartupLog $startupLog) {
+    $startupLog->mark('Головна сторінка готується без синхронного сканування фото');
+
     return view('serial-number.index', [
-        'images' => $catalog->all(),
         'imageDirectory' => $catalog->configuredDirectory(),
         'agents' => $agents->all(),
         'appVersion' => trim((string) file_get_contents(base_path('VERSION'))),
@@ -16,6 +18,8 @@ Route::get('/', function (ImageCatalog $catalog, AiAgentRepository $agents) {
     ]);
 });
 
+Route::get('/image-catalog', [ImageRecognitionController::class, 'catalog']);
+Route::post('/startup/renderer-ready', [ImageRecognitionController::class, 'markRendererReady']);
 Route::get('/images/{image}', [ImageRecognitionController::class, 'image'])->where('image', '[A-Za-z0-9_-]+');
 Route::post('/images/{image}/rotate', [ImageRecognitionController::class, 'rotate'])->where('image', '[A-Za-z0-9_-]+');
 Route::post('/images/{image}/open', [ImageRecognitionController::class, 'openImage'])->where('image', '[A-Za-z0-9_-]+');
@@ -26,6 +30,7 @@ Route::put('/image-directory', [ImageRecognitionController::class, 'updateImageD
 Route::post('/image-directory/choose', [ImageRecognitionController::class, 'chooseImageDirectory']);
 Route::post('/setup', [ImageRecognitionController::class, 'completeSetup']);
 Route::post('/website', [ImageRecognitionController::class, 'openWebsite']);
+Route::post('/window-title', [ImageRecognitionController::class, 'updateWindowTitle']);
 Route::post('/images/{image}/recognize', [ImageRecognitionController::class, 'recognize'])->where('image', '[A-Za-z0-9_-]+');
 Route::post('/images/{image}/recognize-ai/{agent}', [ImageRecognitionController::class, 'recognizeAi'])->where(['image' => '[A-Za-z0-9_-]+', 'agent' => '[A-Za-z0-9-]+']);
 Route::get('/ai-agents', [ImageRecognitionController::class, 'agents']);
